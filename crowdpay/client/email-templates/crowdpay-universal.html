@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>CrowdPay</title>
+    <!--[if mso]>
+      <noscript
+        ><xml
+          ><o:OfficeDocumentSettings
+            ><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings
+          ></xml
+        ></noscript
+      >
+    <![endif]-->
+  </head>
+
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #0f172a;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    "
+  >
+    <!-- Outer wrapper — dark canvas -->
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      style="background: #0f172a; min-height: 100vh"
+    >
+      <tr>
+        <td align="center" style="padding: 40px 16px 60px">
+          <!-- Email card (max 600px) -->
+          <table
+            role="presentation"
+            width="100%"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            style="
+              max-width: 600px;
+              border-radius: 24px;
+              overflow: hidden;
+              box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+            "
+          >
+            <!-- ═══════════════════════════════════════════
+             TOP NAV BAR — logo only, very minimal
+        ═══════════════════════════════════════════ -->
+            <tr>
+              <td
+                style="
+                  background: #0f172a;
+                  padding: 24px 40px 20px;
+                  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                "
+              >
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                >
+                  <tr>
+                    <td>
+                      <img
+                        src="https://res.cloudinary.com/djrquaypp/image/upload/v1773140705/crowdpayplain_f1puzi.png"
+                        width="38"
+                        alt="CrowdPay"
+                        style="
+                          display: inline-block;
+                          vertical-align: middle;
+                          margin-right: 8px;
+                        "
+                      />
+                      <span
+                        style="
+                          font-family:
+                            -apple-system, BlinkMacSystemFont,
+                            &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif;
+                          font-size: 17px;
+                          font-weight: 700;
+                          color: #f8fafc;
+                          letter-spacing: -0.3px;
+                          vertical-align: middle;
+                        "
+                      >
+                        Crowd<span style="color: #34d399">Pay</span>
+                      </span>
+                    </td>
+                    <td align="right">
+                      <span
+                        style="
+                          font-family:
+                            -apple-system, BlinkMacSystemFont,
+                            &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif;
+                          font-size: 11px;
+                          font-weight: 600;
+                          color: #475569;
+                          letter-spacing: 0.05em;
+                          text-transform: uppercase;
+                        "
+                      >
+                        Secure Savings
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- ═══════════════════════════════════════════
+             HERO  — gradient, badge, headline
+        ═══════════════════════════════════════════ -->
+            <tr>
+              <td
+                style="
+                  background: linear-gradient(
+                    160deg,
+                    #1e3a8a 0%,
+                    #1d4ed8 50%,
+                    #0ea5e9 100%
+                  );
+                  padding: 44px 40px 40px;
+                  text-align: center;
+                "
+              >
+                <!-- Badge pill -->
+                <div style="margin-bottom: 20px">
+                  <span
+                    style="display:inline-block;
+                           background:{{badge_bg}};
+                           color:{{badge_color}};
+                           font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+                           font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+                           padding:6px 18px;border-radius:100px;border:1px solid {{badge_color}}22;"
+                  >
+                    {{badge_text}}
+                  </span>
+                </div>
+
+                <!-- Headline -->
+                <h1
+                  style="
+                    margin: 0;
+                    font-family:
+                      -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;,
+                      Helvetica, Arial, sans-serif;
+                    font-size: 28px;
+                    font-weight: 800;
+                    color: #ffffff;
+                    line-height: 1.3;
+                    letter-spacing: -0.5px;
+                  "
+                >
+                  {{headline}}
+                </h1>
+
+                <!-- Accent line -->
+                <div
+                  style="
+                    width: 48px;
+                    height: 3px;
+                    background: rgba(255, 255, 255, 0.35);
+                    border-radius: 2px;
+                    margin: 20px auto 0;
+                  "
+                ></div>
+              </td>
+            </tr>
+
+            <!-- ═══════════════════════════════════════════
+             BODY — white card
+        ═══════════════════════════════════════════ -->
+            <tr>
+              <td style="background: #ffffff; padding: 40px 40px 32px">
+                <!-- Body text -->
+                <p
+                  style="
+                    margin: 0 0 32px;
+                    font-family:
+                      -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;,
+                      Helvetica, Arial, sans-serif;
+                    font-size: 15px;
+                    color: #475569;
+                    line-height: 1.8;
+                  "
+                >
+                  {{body_text}}
+                </p>
+
+                <!-- ── Detail card ──────────────────────────── -->
+                <!-- Top accent bar -->
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="margin-bottom: 32px"
+                >
+                  <tr>
+                    <td
+                      style="height:3px;background:{{badge_accent}};border-radius:3px 3px 0 0;"
+                    ></td>
+                  </tr>
+                  <tr>
+                    <td
+                      style="
+                        background: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        border-top: none;
+                        border-radius: 0 0 16px 16px;
+                        padding: 6px 24px 10px;
+                      "
+                    >
+                      <table
+                        role="presentation"
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        border="0"
+                      >
+                        {{details_rows}}
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- ── CTA Button ────────────────────────────── -->
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="margin-bottom: 24px"
+                >
+                  <tr>
+                    <td align="center">
+                      <!--[if mso
+                        ]><v:roundrect
+                          xmlns:v="urn:schemas-microsoft-com:vml"
+                          href="{{cta_url}}"
+                          style="
+                            height: 52px;
+                            v-text-anchor: middle;
+                            width: 520px;
+                          "
+                          arcsize="15%"
+                          fillcolor="#1d4ed8"
+                          stroke="f"
+                          ><w:anchorlock />
+                          <center
+                            style="
+                              color: #ffffff;
+                              font-family: sans-serif;
+                              font-size: 16px;
+                              font-weight: 800;
+                            "
+                          >
+                            {{cta_text}} →
+                          </center></v:roundrect
+                        ><!
+                      [endif]-->
+                      <!--[if !mso]><!-->
+                      <a
+                        href="{{cta_url}}"
+                        style="
+                          display: block;
+                          background: linear-gradient(
+                            135deg,
+                            #1e3a8a 0%,
+                            #1d4ed8 100%
+                          );
+                          color: #ffffff;
+                          text-decoration: none;
+                          font-family:
+                            -apple-system, BlinkMacSystemFont,
+                            &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif;
+                          font-size: 16px;
+                          font-weight: 800;
+                          letter-spacing: 0.01em;
+                          padding: 18px 40px;
+                          border-radius: 14px;
+                          text-align: center;
+                          box-shadow: 0 8px 28px rgba(29, 78, 216, 0.35);
+                        "
+                      >
+                        {{cta_text}} &rarr;
+                      </a>
+                      <!--<![endif]-->
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Link fallback -->
+                <p
+                  style="
+                    margin: 0 0 32px;
+                    font-family:
+                      -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;,
+                      Helvetica, Arial, sans-serif;
+                    font-size: 12px;
+                    color: #94a3b8;
+                    text-align: center;
+                    line-height: 1.7;
+                  "
+                >
+                  Button not working? Copy this link into your browser:<br />
+                  <a
+                    href="{{cta_url}}"
+                    style="
+                      color: #1d4ed8;
+                      word-break: break-all;
+                      text-decoration: underline;
+                    "
+                    >{{cta_url}}</a
+                  >
+                </p>
+              </td>
+            </tr>
+
+            <!-- ── Security notice (sits between body and footer) ── -->
+            <tr>
+              <td
+                style="
+                  background: #f0f9ff;
+                  border-top: 1px solid #bae6fd;
+                  border-bottom: 1px solid #bae6fd;
+                  padding: 16px 40px;
+                "
+              >
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                >
+                  <tr>
+                    <td width="28" valign="top" style="padding-top: 1px">
+                      <div
+                        style="
+                          width: 24px;
+                          height: 24px;
+                          background: #0ea5e9;
+                          border-radius: 6px;
+                          text-align: center;
+                          line-height: 24px;
+                          font-size: 13px;
+                        "
+                      >
+                        🔒
+                      </div>
+                    </td>
+                    <td style="padding-left: 12px">
+                      <p
+                        style="
+                          margin: 0;
+                          font-family:
+                            -apple-system, BlinkMacSystemFont,
+                            &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif;
+                          font-size: 12px;
+                          color: #0c4a6e;
+                          line-height: 1.7;
+                        "
+                      >
+                        <strong>Protected by CrowdPay Escrow.</strong>
+                        Funds can only be released with 100% unanimous approval
+                        from all group members. No single person controls the
+                        pot.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- ═══════════════════════════════════════════
+             FOOTER
+        ═══════════════════════════════════════════ -->
+            <tr>
+              <td
+                style="
+                  background: #0f172a;
+                  padding: 28px 40px;
+                  border-radius: 0 0 24px 24px;
+                "
+              >
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                >
+                  <tr>
+                    <td style="text-align: center">
+                      <p
+                        style="
+                          margin: 0 0 8px;
+                          font-family:
+                            -apple-system, BlinkMacSystemFont,
+                            &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif;
+                          font-size: 12px;
+                          color: #475569;
+                          line-height: 1.6;
+                        "
+                      >
+                        {{footer_note}}
+                      </p>
+                      <p
+                        style="
+                          margin: 0;
+                          font-family:
+                            -apple-system, BlinkMacSystemFont,
+                            &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif;
+                          font-size: 11px;
+                          color: #334155;
+                        "
+                      >
+                        &copy; 2026 CrowdPay &nbsp;&middot;&nbsp;
+                        <span style="color: #1d4ed8"
+                          >Powered by Interswitch</span
+                        >
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          <!-- /email card -->
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
