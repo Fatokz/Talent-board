@@ -1,0 +1,383 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-navy: #1e3a8a;
+    --color-green: #10b981;
+    --color-orange: #f59e0b;
+    --color-slate: #f8fafc;
+    --color-navy-light: #2d52b8;
+    --color-navy-dark: #162b6b;
+    --color-green-light: #34d399;
+    --color-green-dark: #059669;
+    --color-orange-light: #fcd34d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background-color: #f8fafc;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes pulse-ring {
+  0%,
+  100% {
+    stroke-dashoffset: var(--dash-offset);
+  }
+  50% {
+    stroke-dashoffset: calc(var(--dash-offset) + 4);
+  }
+}
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes badge-pop {
+  0% {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease both;
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease both;
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.4s ease both;
+}
+.animate-badge-pop {
+  animation: badge-pop 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.delay-100 {
+  animation-delay: 0.1s;
+}
+.delay-200 {
+  animation-delay: 0.2s;
+}
+.delay-300 {
+  animation-delay: 0.3s;
+}
+.delay-400 {
+  animation-delay: 0.4s;
+}
+.delay-500 {
+  animation-delay: 0.5s;
+}
+
+/* Glass morphism */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Nav active gradient */
+.nav-active {
+  background: linear-gradient(
+    90deg,
+    rgba(16, 185, 129, 0.15) 0%,
+    rgba(16, 185, 129, 0.03) 100%
+  );
+  border-left: 3px solid #10b981;
+}
+
+/* Progress ring */
+.progress-ring-circle {
+  transition: stroke-dashoffset 1s ease-in-out;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Card hover */
+.jar-card {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.jar-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(30, 58, 138, 0.12);
+}
+
+/* Button glow */
+.btn-navy {
+  background: linear-gradient(135deg, #1e3a8a, #2d52b8);
+  box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3);
+  transition: all 0.2s ease;
+}
+.btn-navy:hover {
+  box-shadow: 0 6px 20px rgba(30, 58, 138, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-green {
+  background: linear-gradient(135deg, #059669, #10b981);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s ease;
+}
+.btn-green:hover {
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+  transform: translateY(-1px);
+}
+
+/* Status badges */
+.status-approved {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+.status-pending {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+.status-declined {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Sidebar gradient */
+.sidebar-gradient {
+  background: linear-gradient(180deg, #1e3a8a 0%, #162b6b 100%);
+}
+
+/* Governance orb overlay */
+.governance-orb-overlay {
+  background: radial-gradient(ellipse at top right, #10B981 0%, transparent 60%), radial-gradient(ellipse at bottom left, #1E3A8A 0%, transparent 60%);
+}
+
+/* Input focus */
+.input-focus:focus {
+  outline: none;
+  border-color: #1e3a8a;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+/* ─── Landing Page ───────────────────────────────────────── */
+
+/* Hero gradient text */
+.hero-gradient-text {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2d52b8 40%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hero background blobs */
+.hero-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+.hero-blob-1 {
+  width: 600px;
+  height: 600px;
+  top: -200px;
+  right: -150px;
+  background: radial-gradient(circle, rgba(30, 58, 138, 0.12) 0%, transparent 70%);
+  animation: float-slow 10s ease-in-out infinite;
+}
+.hero-blob-2 {
+  width: 400px;
+  height: 400px;
+  bottom: -100px;
+  left: -100px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+  animation: float-slow 14s ease-in-out infinite reverse;
+}
+.hero-blob-3 {
+  width: 300px;
+  height: 300px;
+  top: 40%;
+  left: 30%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+  animation: float-slow 12s ease-in-out infinite 3s;
+}
+
+/* Dot grid */
+.hero-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(30, 58, 138, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Hero card */
+.hero-card-shadow {
+  box-shadow:
+    0 40px 80px rgba(30, 58, 138, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* Floating hero badges */
+.floating-badge-1 {
+  animation: float-badge 6s ease-in-out infinite;
+}
+.floating-badge-2 {
+  animation: float-badge 7s ease-in-out infinite 1.5s;
+}
+
+/* CTA banner background */
+.cta-banner-bg {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2d52b8 50%, #1e3a8a 100%);
+  box-shadow: 0 30px 80px rgba(30, 58, 138, 0.3);
+}
+
+/* ─── Auth Pages ─────────────────────────────────────────── */
+
+/* Animated dot-grid for auth brand panel */
+.auth-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Auth glowing orbs */
+.auth-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(60px);
+}
+.auth-orb-1 {
+  width: 350px;
+  height: 350px;
+  top: -80px;
+  right: -80px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+  animation: float-slow 12s ease-in-out infinite;
+}
+.auth-orb-2 {
+  width: 250px;
+  height: 250px;
+  bottom: 60px;
+  left: -60px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+  animation: float-slow 16s ease-in-out infinite reverse;
+}
+
+/* Shared auth input */
+.auth-input {
+  width: 100%;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  color: #1e293b;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+.auth-input::placeholder {
+  color: #94a3b8;
+}
+.auth-input:focus {
+  border-color: #1e3a8a;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.09);
+}
+
+/* ─── Extra keyframes ────────────────────────────────────── */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-20px) scale(1.03); }
+}
+@keyframes float-badge {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* ─── Live ticker ────────────────────────────────────────── */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 28s linear infinite;
+  will-change: transform;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
