@@ -433,7 +433,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
                                 onClick={async () => {
                                     setPinLoading(true); setPinMsg(null);
                                     try {
-                                        const res = await fetch('/api/set-wallet-pin', {
+                                        const res = await fetch('/api/wallet-pin?action=set', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({ uid: currentUser?.uid, pin: newPin })

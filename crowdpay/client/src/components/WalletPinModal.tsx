@@ -58,7 +58,7 @@ export default function WalletPinModal({ isOpen, onClose, onSuccess, title = 'En
         setError('');
 
         try {
-            const res = await fetch('/api/verify-wallet-pin', {
+            const res = await fetch('/api/wallet-pin?action=verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uid: currentUser?.uid, pin: fullPin }),

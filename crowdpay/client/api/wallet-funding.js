@@ -1,0 +1,109 @@
+/**
+ * api/wallet-funding.js
+ * Merged from initiate-wallet-funding.js + verify-wallet-funding.js
+ *
+ * POST /api/wallet-funding?action=initiate  — generate Interswitch payment params
+ * POST /api/wallet-funding?action=verify    — verify payment and credit wallet
+ */
+import crypto from 'crypto';
+import admin from 'firebase-admin';
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ message: 'Method Not Allowed' });
+
+  const action = req.query.action; // 'initiate' or 'verify'
+
+  // ── INITIATE ──────────────────────────────────────────────────────────
+  if (action === 'initiate') {
+    const { amount, uid, email } = req.body;
+    if (!amount || !uid || !email) return res.status(400).json({ message: 'Missing parameters' });
+
+    try {
+      const amountInKobo = Math.round(Number(amount) * 100);
+      const txnRef = `CP_W_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+      const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
+      const payItemId = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX179536';
+      const currency = '566';
+      const siteRedirectUrl = process.env.SITE_URL
+        ? `${process.env.SITE_URL}/dashboard?wallet_funded=${txnRef}&amount=${amount}`
+        : `http://localhost:5173/dashboard?wallet_funded=${txnRef}&amount=${amount}`;
+      const macKey = process.env.INTERSWITCH_MAC_KEY;
+      const hash = crypto.createHash('sha512')
+        .update(`${txnRef}${productId}${payItemId}${amountInKobo}${siteRedirectUrl}${macKey || 'TEST_MAC_KEY'}`)
+        .digest('hex');
+
+      return res.status(200).json({ txnRef, productId, payItemId, amount: amountInKobo, currency, siteRedirectUrl, hash, email, uid });
+    } catch (err) {
+      return res.status(500).json({ message: 'Error initiating funding' });
+    }
+  }
+
+  // ── VERIFY ────────────────────────────────────────────────────────────
+  if (action === 'verify') {
+    const { txnRef, amount, uid } = req.body;
+    if (!txnRef || !amount || !uid) return res.status(400).json({ message: 'Missing details' });
+
+    try {
+      const isBypassEnabled = process.env.VITE_ENABLE_KYC_BYPASS === 'true';
+      let isSuccess = false;
+
+      if (isBypassEnabled) {
+        isSuccess = true;
+      } else {
+        const amountInKobo = Math.round(Number(amount) * 100);
+        const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
+        const macKey = process.env.INTERSWITCH_MAC_KEY;
+        const hash = crypto.createHash('sha512')
+          .update(`${productId}${txnRef}${macKey || 'TEST_MAC_KEY'}`)
+          .digest('hex');
+        const baseUrl = process.env.NODE_ENV === 'production'
+          ? 'https://webpay.interswitchng.com/collections/api/v1/gettransaction.json'
+          : 'https://qa.interswitchng.com/collections/api/v1/gettransaction.json';
+        const response = await fetch(`${baseUrl}?merchantcode=${productId}&transactionreference=${txnRef}&amount=${amountInKobo}`, {
+          headers: { Hash: hash }
+        });
+        const data = await response.json();
+        if (data && (data.ResponseCode === '00' || data.ResponseCode === '000')) isSuccess = true;
+      }
+
+      if (isSuccess) {
+        const db = admin.firestore();
+        const userRef = db.collection('users').doc(uid);
+        const newBalance = await db.runTransaction(async (t) => {
+          const doc = await t.get(userRef);
+          if (!doc.exists) throw new Error('User not found');
+          const handled = doc.data().handledTxns || [];
+          if (handled.includes(txnRef)) throw new Error('already verified');
+          const newBal = (doc.data().walletBalance || 0) + Number(amount);
+          t.update(userRef, {
+            walletBalance: newBal,
+            loyaltyPoints: (doc.data().loyaltyPoints || 0) + 20,
+            handledTxns: admin.firestore.FieldValue.arrayUnion(txnRef)
+          });
+          return newBal;
+        });
+        return res.status(200).json({ success: true, newBalance, message: 'Wallet funded successfully!' });
+      } else {
+        return res.status(400).json({ success: false, message: 'Payment verification failed.' });
+      }
+    } catch (err) {
+      if (err.message?.includes('already verified')) {
+        return res.status(200).json({ success: true, message: 'Already credited.' });
+      }
+      console.error('verify wallet funding error:', err);
+      return res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+  return res.status(400).json({ message: 'Invalid action. Use ?action=initiate or ?action=verify' });
+}

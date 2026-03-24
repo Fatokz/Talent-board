@@ -27,7 +27,7 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
 
         setLoading(true)
         try {
-            const res = await fetch('/api/initiate-wallet-funding', {
+            const res = await fetch('/api/wallet-funding?action=initiate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

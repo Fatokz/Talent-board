@@ -133,7 +133,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
         if (txnRef && amount && currentUser?.uid) {
             setSearchParams(new URLSearchParams()); // clear url immediately
             // Silently verify the payment
-            fetch('/api/verify-wallet-funding', {
+            fetch('/api/wallet-funding?action=verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ txnRef, amount, uid: currentUser.uid })
