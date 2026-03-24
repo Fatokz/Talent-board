@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (!nin || nin.length !== 11) {
     return res.status(400).json({ success: false, message: 'Invalid NIN. Must be 11 digits.' });
   }
-
+// testing 
   try {
     const clientId = process.env.INTERSWITCH_CLIENT_ID;
     const clientSecret = process.env.INTERSWITCH_CLIENT_SECRET;
