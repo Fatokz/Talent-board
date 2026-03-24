@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
     Bell, Search, Plus, TrendingUp, Users, Target, Award,
     Clock, Lock, ChevronRight, AlertCircle, LayoutDashboard,
     RefreshCcw, Gift, HeartHandshake, GraduationCap, Building2, Menu,
+    Wallet, ArrowDownToLine, ArrowUpRight
 } from 'lucide-react'
 import { jarTemplates } from '../data/mockData'
 import { useAuth } from '../contexts/AuthContext'
@@ -13,6 +14,8 @@ import KycBlockerModal from '../components/KycBlockerModal'
 import CreateJarModal from '../components/CreateJarModal'
 import WithdrawalRequestModal from '../components/WithdrawalRequestModal'
 import FundJarModal from '../components/FundJarModal'
+import WithdrawWalletModal from '../components/WithdrawWalletModal'
+import FundWalletModal from '../components/FundWalletModal'
 import { JarTemplate, VotingModalState } from '../types'
 
 const jarMeta: Record<string, { icon: React.ElementType; grad: string; text: string; tag: string }> = {
@@ -109,6 +112,7 @@ interface Props { onMenuClick?: () => void }
 
 export default function SocialDashboard({ onMenuClick }: Props) {
     const navigate = useNavigate()
+    const [searchParams, setSearchParams] = useSearchParams()
     const { currentUser } = useAuth()
     const [kycProfile, setKycProfile] = useState<UserProfile | null>(null)
     const [kycModalOpen, setKycModalOpen] = useState(false)
@@ -118,7 +122,30 @@ export default function SocialDashboard({ onMenuClick }: Props) {
     const [search, setSearch] = useState('')
     const [realJars, setRealJars] = useState<Jar[]>([])
     const [withdrawalJar, setWithdrawalJar] = useState<JarTemplate | null>(null)
+    const [withdrawModalOpen, setWithdrawModalOpen] = useState(false)
+    const [fundWalletModalOpen, setFundWalletModalOpen] = useState(false)
     const [fundingJar, setFundingJar] = useState<JarTemplate | null>(null)
+
+    // Capture Interswitch Funding Redirect
+    useEffect(() => {
+        const txnRef = searchParams.get('wallet_funded');
+        const amount = searchParams.get('amount');
+        if (txnRef && amount && currentUser?.uid) {
+            setSearchParams(new URLSearchParams()); // clear url immediately
+            // Silently verify the payment
+            fetch('/api/verify-wallet-funding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ txnRef, amount, uid: currentUser.uid })
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    alert(data.message || 'Wallet funded successfully!');
+                } else {
+                    alert(data.message || 'Wallet funding verification failed.');
+                }
+            }).catch(console.error)
+        }
+    }, [searchParams, currentUser, setSearchParams])
 
     useEffect(() => {
         if (!currentUser) return;
@@ -228,6 +255,35 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                         Welcome back, <span className="bg-gradient-to-r from-blue-900 to-emerald-500 bg-clip-text text-transparent">{currentUser?.displayName?.split(' ')[0] || 'Member'}!</span>
                     </h1>
                     <p className="text-sm text-slate-500">Your collective wallets are secure. All jars are protected by unanimous consensus.</p>
+                </div>
+
+                {/* Wallet Balance Card */}
+                <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 rounded-3xl p-6 sm:p-8 mb-7 shadow-[0_20px_40px_-15px_rgba(30,58,138,0.5)] relative overflow-hidden">
+                    <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute right-20 -bottom-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+                    
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <Wallet size={16} className="text-blue-300" />
+                                <p className="text-sm font-bold text-blue-200 uppercase tracking-widest">My CrowdPay Wallet</p>
+                            </div>
+                            <h2 className="text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md">
+                                {fmtMoney(kycProfile?.walletBalance || 0)}
+                            </h2>
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <button onClick={() => requireKyc(() => setFundWalletModalOpen(true))}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-black text-sm transition-all border border-white/10 shadow-inner">
+                                <ArrowDownToLine size={16} /> Fund
+                            </button>
+                            <button onClick={() => requireKyc(() => setWithdrawModalOpen(true))}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-sm transition-all shadow-lg shadow-emerald-500/30">
+                                Withdraw <ArrowUpRight size={16} />
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Stat cards */}
@@ -357,6 +413,19 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                     console.log('Jar created', id);
                     setTemplateName('');
                 }}
+            />
+
+            {/* Fund Wallet Modal */}
+            <FundWalletModal 
+                isOpen={fundWalletModalOpen} 
+                onClose={() => setFundWalletModalOpen(false)} 
+            />
+
+            {/* Withdraw Wallet Modal */}
+            <WithdrawWalletModal 
+                isOpen={withdrawModalOpen} 
+                onClose={() => setWithdrawModalOpen(false)} 
+                profile={kycProfile} 
             />
 
             {/* KYC Blocker Modal */}

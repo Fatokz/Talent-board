@@ -6,7 +6,7 @@ import {
     GoogleAuthProvider,
     signOut as firebaseSignOut
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile, subscribeToUserDoc, updateCurrentRole as dbUpdateRole } from '../lib/db';
 
@@ -27,22 +27,26 @@ export function useAuth() {
 
 /** Ensures a Firestore user document exists for any auth method. */
 async function ensureUserProfile(user: User) {
-    await setDoc(
-        doc(db, 'users', user.uid),
-        {
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+    
+    if (!snap.exists()) {
+        await setDoc(userRef, {
             uid: user.uid,
             fullName: user.displayName || '',
             email: user.email || '',
-            // Only set defaults on first create — merge: true leaves existing fields untouched
             trustScore: 500,
             walletBalance: 0,
             kycStatus: 'unverified',
             roles: ['user'],
             currentRole: 'user',
+            createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-        },
-        { merge: true }   // safe to call on every login — won't overwrite existing data
-    );
+        });
+    } else {
+        // User already exists — do nothing.
+        // subscribeToUserDoc below will keep the profile in sync via realtime listener.
+    }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

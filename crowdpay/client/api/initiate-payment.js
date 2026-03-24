@@ -18,9 +18,9 @@ export default async function handler(req, res) {
     // Generate a unique Transaction Reference for this payment
     const txnRef = `CP_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
     
-    // Environment Variables specific to your Interswitch Merchant account
-    const productId = process.env.INTERSWITCH_PRODUCT_ID || '1076';     // Default test Product ID
-    const payItemId = process.env.INTERSWITCH_PAY_ITEM_ID || '101001';  // Default test Pay Item ID
+    // Environment Variables — your real Interswitch Merchant Account
+    const productId   = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
+    const payItemId   = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX179536';
     const currency = '566'; // 566 is NGN (Naira)
     
     // Determine the Redirect URL after payment completion (locally or production Vercel URL)

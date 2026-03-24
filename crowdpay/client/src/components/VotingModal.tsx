@@ -52,12 +52,21 @@ export default function VotingModal({ isOpen, jar, approval, request, onClose }:
         if (request) {
             // Real Firestore vote
             try {
-                await castWithdrawalVote(
+                const newStatus = await castWithdrawalVote(
                     request.id,
                     currentUser.uid,
                     vote === 'approve' ? 'approved' : 'declined',
                     vote === 'decline' ? reason : undefined
                 )
+                
+                if (newStatus === 'approved') {
+                    // Trigger the payout to intelligently credit the user's CrowdPay Wallet!
+                    await fetch('/api/execute-payout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ requestId: request.id })
+                    })
+                }
             } catch (err) {
                 console.error('Vote failed', err)
             }

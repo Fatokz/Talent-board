@@ -1,5 +1,3 @@
-import crypto from 'crypto';
-import axios from 'axios';
 import admin from 'firebase-admin';
 
 // Initialize Firebase Admin securely.
@@ -22,112 +20,103 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { jarId, destinationAccount, destinationBankCode } = req.body;
-
-  if (!jarId || !destinationAccount || !destinationBankCode) {
-    return res.status(400).json({ message: 'Missing final payout details' });
-  }
+  const { requestId } = req.body;
+  if (!requestId) return res.status(400).json({ message: 'Missing requestId' });
 
   try {
     const db = admin.firestore();
-    const jarRef = db.collection('jars').doc(jarId);
+    const requestRef = db.collection('withdrawalRequests').doc(requestId);
     
     // We must run logic in a Transaction to lock the document and prevent double-payouts
     const payoutResult = await db.runTransaction(async (t) => {
-      const doc = await t.get(jarRef);
-      if (!doc.exists) throw new Error('Jar does not exist!');
+      const reqDoc = await t.get(requestRef);
+      if (!reqDoc.exists) throw new Error('Withdrawal Request does not exist!');
       
-      const jarData = doc.data();
+      const requestData = reqDoc.data();
 
-      // 1. The Governance Trigger Check: "Unanimous Trust"
-      // Prevent Payout if 100% vote is not reached.
-      const totalMembers = jarData.members ? jarData.members.length : 1;
-      const approvalCount = jarData.members ? jarData.members.filter(m => m.approved).length : 0;
-      
-      if (jarData.status === 'PAYOUT_COMPLETED') {
-        throw new Error('This Jar has already been disbursed.');
+      if (requestData.status === 'disbursed') {
+        throw new Error('This request has already been disbursed to the wallet.');
       }
 
-      if (approvalCount !== totalMembers) {
-        throw new Error(`Governance Trigger Failed: Only ${approvalCount} out of ${totalMembers} have approved. 100% required.`);
+      if (requestData.status !== 'approved') {
+        throw new Error('Governance Trigger Failed: This request is not fully approved yet.');
       }
 
-      const totalPooled = jarData.totalPooled || 0;
-      
-      if (totalPooled <= 0) {
-         throw new Error('Jar has no funds to disburse.');
+      // Check Jar exists
+      const jarRef = db.collection('jars').doc(requestData.jarId);
+      const jarDoc = await t.get(jarRef);
+      if (!jarDoc.exists) throw new Error('Associated Jar does not exist!');
+      const jarData = jarDoc.data();
+
+      // Deduction calculations
+      const requestAmount = requestData.amount || 0;
+      if (requestAmount <= 0) throw new Error('Invalid withdrawal amount');
+
+      const platformFee = requestAmount * 0.02; // 2% platform fee
+      const netPayout = requestAmount - platformFee;
+
+      // Check Destination
+      let targetUserId = requestData.requestedBy;
+      if (requestData.destinationType === 'vendor') {
+         if (!requestData.vendorId) throw new Error('Vendor Destination specified but no Vendor ID provided.');
+         
+         const vendorRef = db.collection('vendorProfiles').doc(requestData.vendorId);
+         const vendorDoc = await t.get(vendorRef);
+         if (!vendorDoc.exists) throw new Error('Invalid Vendor ID. Vendor does not exist.');
+         
+         targetUserId = requestData.vendorId;
       }
 
-      // 2. The Math Breakdown (Option A: Deduction Phase)
-      // We deduct CrowdPay Platform 2% fee at the end here.
-      const platformFee = totalPooled * 0.02; // 2%
-      // Flat Interswitch Fee (Assume ₦50 for bank transfer)
-      const iswFlatFee = 50;
+      // Target Wallet (User or Vendor)
+      const userRef = db.collection('users').doc(targetUserId);
+      const userDoc = await t.get(userRef);
+      if (!userDoc.exists) throw new Error('Target User/Vendor Profile not found in users collection!');
       
-      const payoutAmount = totalPooled - platformFee - iswFlatFee;
+      const userData = userDoc.data();
+      const currentBalance = userData.walletBalance || 0;
+      const newBalance = currentBalance + netPayout;
 
-      if (payoutAmount <= 0) {
-        throw new Error('Calculated net payout is less than zero. Need higher contribution.');
+      const requesterRef = db.collection('users').doc(requestData.requestedBy);
+
+      // ---- EXECUTE ALL MUTATIONS IN TRANSACTION ----
+      // 1. Mark request as disbursed
+      t.update(requestRef, { status: 'disbursed' });
+
+      // 2. Add to target wallet instantly
+      t.update(userRef, { walletBalance: newBalance });
+
+      // 3. Loyalty Points Accrual for successfully completing a payout (Phase 3)
+      if (targetUserId !== requestData.requestedBy) {
+          const requesterDoc = await t.get(requesterRef);
+          if (requesterDoc.exists) {
+              const rData = requesterDoc.data();
+              t.update(requesterRef, { loyaltyPoints: (rData.loyaltyPoints || 0) + 50 });
+          }
+      } else {
+          t.update(userRef, { loyaltyPoints: (userData.loyaltyPoints || 0) + 50 });
       }
 
-      // We mark as processing right away within the transaction (optimistic locking)
-      t.update(jarRef, { status: 'PAYOUT_PROCESSING', netPayout: payoutAmount, platformFee });
-      
-      return { totalPooled, payoutAmount, platformFee };
+      // 4. Update Jar stats natively
+      let updatedTotalPooled = (jarData.totalPooled || 0);
+      if (requestData.type === 'goal_withdrawal') {
+        updatedTotalPooled = Math.max(0, updatedTotalPooled - requestAmount);
+        t.update(jarRef, { totalPooled: updatedTotalPooled, status: 'PAYOUT_COMPLETED' });
+      } else if (requestData.type === 'ajo_rotation') {
+        const nextRound = (jarData.currentRound || 0) + 1;
+        t.update(jarRef, { currentRound: nextRound, disbursedRounds: nextRound, paidThisCycle: [] });
+      }
+
+      return { requestAmount, netPayout, platformFee, newBalance };
     });
-
-    // 3. Interswitch Authenticated Handshake for Transfer API
-    const clientId = process.env.INTERSWITCH_CLIENT_ID;
-    const clientSecret = process.env.INTERSWITCH_SECRET_KEY;
-    const isProd = process.env.NODE_ENV === 'production';
-    const authUrl = isProd ? 'https://passport.interswitchng.com/passport/oauth/token' : 'https://qa.interswitchng.com/passport/oauth/token';
-    const transferUrl = isProd ? 'https://webpay.interswitchng.com/api/v1/payouts' : 'https://qa.interswitchng.com/api/v1/payouts';
-
-    // Generate Base64 Auth
-    const base64Auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-    
-    // Get Bearer Token
-    const authResponse = await axios.post(authUrl, 'grant_type=client_credentials', {
-      headers: {
-        'Authorization': `Basic ${base64Auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-
-    const accessToken = authResponse.data.access_token;
-    
-    // Generate Transfer MAC (MAC is usually required for transfers as well, depending on ISW docs)
-    // Assuming simple payload Transfer Request to ISW Transfer API
-    const transferPayload = {
-       amount: Math.round(payoutResult.payoutAmount * 100), // In Kobo
-       currencyCode: "566",
-       bankCode: destinationBankCode,
-       accountNumber: destinationAccount,
-       mac: "" // You'll generate the precise MAC string based on ISW docs: amount+account+currency+etc + secret
-    };
-    
-    // (Omitted the exact MAC string layout as it relies on specific API version docs, 
-    // but the token auth is setup precisely).
-
-    /* 
-    // Simulating actual POST to transferUrl 
-    const transferResponse = await axios.post(transferUrl, transferPayload, {
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
-    });
-    */
-
-    // 4. Update the Jar status natively inside Firebase once Interswitch finishes payout.
-    await db.collection('jars').doc(jarId).update({ status: 'PAYOUT_COMPLETED' });
 
     return res.status(200).json({ 
-      message: 'Payout Processed Successfully', 
+      message: 'Wallet Credited Successfully', 
       success: true, 
       details: payoutResult
     });
 
   } catch (error) {
-    console.error('Error executing payout:', error);
-    // If it failed, we ideally want to revert status back from PAYOUT_PROCESSING to APPROVED
+    console.error('Error executing payout to wallet:', error);
     res.status(400).json({ message: 'Payout execution failed', error: error.message });
   }
 }

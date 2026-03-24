@@ -1,37 +1,35 @@
 export default async function handler(req, res) {
-    // 1. SET CORS HEADERS FIRST (Crucial for Port 5173 to Port 3001 communication)
+    // 1. SET CORS HEADERS FIRST
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
-    // 2. HANDLE THE "PREFLIGHT" REQUEST
-    // Browsers send this before the actual POST to check permissions.
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
-    // 3. YOUR EXISTING LOGIC STARTS HERE
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { nin, firstName, lastName, uid } = req.body;
+    const { accountNumber, bankCode, fullName } = req.body;
 
-    if (!nin || nin.length !== 11) {
-        return res.status(400).json({ success: false, message: 'Invalid NIN. Must be 11 digits.' });
+    if (!accountNumber || accountNumber.length !== 10 || !bankCode) {
+        return res.status(400).json({ success: false, message: 'Invalid Account Number or missing Bank Code.' });
     }
 
     // --- PROFESSIONAL KILL SWITCH FOR SANDBOX BYPASS ---
     const isBypassEnabled = process.env.VITE_ENABLE_KYC_BYPASS === 'true';
-    if (isBypassEnabled && (nin === '11111111111' || nin === '00000000000')) {
+    const bypassAccountNumber = process.env.VITE_BYPASS_ACCOUNT_NUMBER || '1000000000';
+    
+    if (isBypassEnabled && (accountNumber === bypassAccountNumber || accountNumber === '0000000000')) {
         return res.status(200).json({
             success: true,
             data: {
-                status: 'verified',
-                firstName: firstName || 'Test',
-                lastName: lastName || 'User',
-                gender: 'm',
+                accountName: fullName || 'TEST USER ACCOUNT',
+                accountNumber: accountNumber,
+                bankName: 'Test Bank',
                 message: 'Sandbox Bypass Active'
             }
         });
@@ -64,36 +62,33 @@ export default async function handler(req, res) {
 
         const accessToken = tokenData.access_token;
 
-        // 2. VERIFY NIN VIA MARKETPLACE ROUTING
-        const verifyResponse = await fetch('https://api-marketplace-routing.k8.isw.la/marketplace-routing/api/v1/verify/identity/nin', {
+        // 2. VERIFY ACCOUNT DETAILS
+        const verifyResponse = await fetch('https://api-marketplace-routing.k8.isw.la/marketplace-routing/api/v1/verify/identity/account-number/resolve', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify({
-                firstName,
-                lastName,
-                nin
+                accountNumber,
+                bankCode
             })
         });
 
         const verifyData = await verifyResponse.json();
 
-        // 1. Check for explicit error response code
         if (!verifyResponse.ok || verifyData.responseCode === 'ERROR') {
             return res.status(400).json({
                 success: false,
-                message: verifyData.message || 'NIN Verification Failed'
+                message: verifyData.message || 'Account Verification Failed'
             });
         }
 
-        // 2. Check for missing data (The source of the "Cannot read properties of null" error)
-        if (!verifyData.data || !verifyData.data.nin) {
+        if (!verifyData.data || !verifyData.data.bankDetails) {
             console.error('Interswitch Response Missing Data:', JSON.stringify(verifyData, null, 2));
             return res.status(400).json({
                 success: false,
-                message: verifyData.message || 'Interswitch returned an empty data object. Verification could not be completed.'
+                message: verifyData.message || 'Interswitch returned an empty data object. Account could not be verified.'
             });
         }
 
@@ -101,19 +96,18 @@ export default async function handler(req, res) {
         return res.status(200).json({
             success: true,
             data: {
-                status: 'verified',
-                firstName: verifyData.data.nin.firstname,
-                lastName: verifyData.data.nin.lastname,
-                gender: verifyData.data.nin.gender,
-                message: 'Identity verified successfully via Interswitch'
+                accountName: verifyData.data.bankDetails.accountName,
+                accountNumber: verifyData.data.bankDetails.accountNumber,
+                bankName: verifyData.data.bankDetails.bankName,
+                message: 'Account verified successfully via Interswitch'
             }
         });
 
     } catch (error) {
-        console.error('Interswitch KYC Error:', error.message);
+        console.error('Interswitch Bank Verification Error:', error.message);
         return res.status(500).json({ 
             success: false, 
-            message: 'Internal Server Error during Interswitch verification' 
+            message: 'Internal Server Error during bank verification' 
         });
     }
 }

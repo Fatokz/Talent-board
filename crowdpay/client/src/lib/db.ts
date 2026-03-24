@@ -2,7 +2,7 @@ import { db } from './firebase';
 import { 
     collection, getDocs, query, where, addDoc,
     onSnapshot, doc, updateDoc, arrayUnion, getDoc,
-    setDoc, serverTimestamp
+    setDoc
 } from 'firebase/firestore';
 
 // Represents a real Jar instantiated in the database
@@ -39,10 +39,12 @@ export interface WithdrawalRequest {
     requestedByInitials: string;
     amount: number;
     reason: string;
-    // Payout bank details (provided by the recipient)
-    bankName: string;
-    accountNumber: string;
-    accountName: string;
+    // Payout details
+    destinationType?: 'internal_wallet' | 'vendor';
+    vendorId?: string;
+    bankName?: string;
+    accountNumber?: string;
+    accountName?: string;
     // Voting state — key is voter UID
     votes: Record<string, { decision: 'approved' | 'declined'; reason?: string }>;
     totalVoters: number;
@@ -75,6 +77,12 @@ export interface UserProfile {
     nin?: string;
     phoneNumber?: string;
     address?: string;
+    bankName?: string;
+    bankCode?: string;
+    accountNumber?: string;
+    accountName?: string;
+    walletBalance?: number; // Core crowdpay wallet integration
+    loyaltyPoints?: number; // Phase 3 Rewards
     roles: ('user' | 'vendor')[];
     currentRole: 'user' | 'vendor';
     vendorId?: string; // Links to a doc in 'vendorProfiles' if they are a vendor
