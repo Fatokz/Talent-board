@@ -7,6 +7,14 @@ export default defineConfig({
         react()
     ],
     server: {
+        proxy: {
+            // This is the magic bridge
+            '/api': {
+                target: 'http://localhost:3001',
+                changeOrigin: true,
+                secure: false,
+            }
+        },
         headers: {
             "Cross-Origin-Opener-Policy": "same-origin-allow-popups"
         }

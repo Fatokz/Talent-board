@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { subscribeToUserDoc, updateUserProfile, UserProfile } from '../lib/db'
+import { apiFetch } from '../utils/api';
 
 interface Props { onMenuClick?: () => void }
 
@@ -58,7 +59,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
         }
 
         try {
-            const res = await fetch('/api/verify-nin', {
+            const res = await apiFetch('/api/verify-nin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
