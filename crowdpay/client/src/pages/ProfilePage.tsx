@@ -36,7 +36,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
-        
+
         if (nin.length !== 11) {
             setError('NIN must be exactly 11 digits.')
             return
@@ -46,6 +46,11 @@ export default function ProfilePage({ onMenuClick }: Props) {
             setError('Phone number and address are required.')
             return
         }
+
+        // NEW: Split fullName for the Interswitch API requirement
+        const nameParts = (profile?.fullName || '').trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
 
         setVerifying(true)
         if (currentUser) {
@@ -58,7 +63,8 @@ export default function ProfilePage({ onMenuClick }: Props) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     nin,
-                    fullName: profile?.fullName,
+                    firstName, // UPDATED
+                    lastName,  // UPDATED
                     uid: currentUser?.uid
                 })
             })
@@ -69,12 +75,14 @@ export default function ProfilePage({ onMenuClick }: Props) {
                 setError(json.message || 'Verification failed. Please check your details.')
                 await updateUserProfile(currentUser!.uid, { kycStatus: 'unverified' })
             } else {
-                // Success
+                // Success: Profile is now "locked" with official data from Interswitch
                 await updateUserProfile(currentUser!.uid, {
                     kycStatus: 'verified',
                     nin,
                     phoneNumber: phone,
-                    address
+                    address,
+                    // Optional: Sync back the official names from the API response
+                    fullName: `${json.data.firstName} ${json.data.lastName}`.trim()
                 })
             }
         } catch (err: any) {
