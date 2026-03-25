@@ -38,19 +38,15 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
     const currentRole = userProfile?.currentRole || 'user'
 
     const navItems = [
-        { to: '/dashboard/', icon: LayoutDashboard, label: 'Social Dashboard', end: true, badge: undefined as number | undefined, roles: ['user'] },
-        { to: '/dashboard/profile', icon: UserIcon, label: 'Profile & KYC', badge: undefined as number | undefined, roles: ['user', 'vendor'] },
-        { to: '/dashboard/marketplace', icon: Store, label: 'Marketplace', badge: undefined as number | undefined, roles: ['user'] },
-        { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: notifCount > 0 ? notifCount : undefined, roles: ['user', 'vendor'] },
-        { to: '/dashboard/groups', icon: Users, label: 'Group Management', badge: undefined as number | undefined, roles: ['user'] },
-        { to: '/dashboard/ledger', icon: BookOpen, label: 'Transaction Ledger', badge: undefined as number | undefined, roles: ['user'] },
-        
-        // Vendor ONLY items
-        { to: '/dashboard/vendor', icon: LayoutDashboard, label: 'Merchant Dashboard', end: true, badge: undefined as number | undefined, roles: ['vendor'] },
-        { to: '/dashboard/vendor/products', icon: Package, label: 'Product Inventory', badge: undefined as number | undefined, roles: ['vendor'] },
+        { to: '/dashboard/', icon: LayoutDashboard, label: 'Social Dashboard', end: true, badge: undefined as number | undefined },
+        { to: '/dashboard/profile', icon: UserIcon, label: 'Profile & KYC', badge: undefined as number | undefined },
+        { to: '/dashboard/marketplace', icon: Store, label: 'Marketplace', badge: undefined as number | undefined },
+        { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: notifCount > 0 ? notifCount : undefined },
+        { to: '/dashboard/groups', icon: Users, label: 'Group Management', badge: undefined as number | undefined },
+        { to: '/dashboard/ledger', icon: BookOpen, label: 'Transaction Ledger', badge: undefined as number | undefined },
     ]
 
-    const filteredNav = navItems.filter(item => item.roles.includes(currentRole))
+    const filteredNav = navItems // No filtering needed in Personal sidebar anymore
 
     const handleSwitch = async () => {
         if (!currentUser) return

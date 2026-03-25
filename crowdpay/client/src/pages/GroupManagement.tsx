@@ -453,7 +453,9 @@ export default function GroupManagement({ onMenuClick }: Props) {
                     jarCategory={selected.category}
                     amount={selected.raised}
                     totalVoters={Math.max(selected.members - 1, 0)}
+                    jarType={selectedJar.jarType}
                     type={selected.category === 'Traditional' ? 'ajo_rotation' : 'goal_withdrawal'}
+                    linkedVendorId={selectedJar.vendorId}
                 />
             )}
         </div>

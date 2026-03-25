@@ -1,33 +1,60 @@
 import { useState, useEffect } from 'react'
 import { 
-    LayoutDashboard, Package, MessageSquare, TrendingUp, 
-    Plus, Search, Store, Users, ArrowUpRight, DollarSign,
-    ShieldCheck, Clock
+    Package, TrendingUp, 
+    Plus, Store, Users, ArrowUpRight, DollarSign,
+    ShieldCheck, Clock, ShoppingCart
 } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
-import { mockProducts } from '../data/mockData'
-import { subscribeToVendorProfile, VendorProfile } from '../lib/db'
+import { useAuth } from '../../contexts/AuthContext'
+import { 
+    subscribeToVendorProfile, VendorProfile, 
+    subscribeToVendorProducts, Product,
+    subscribeToVendorOrders, Order,
+    updateOrderStatus
+} from '../../lib/db'
+import AddProductModal from '../../components/AddProductModal'
+import toast from 'react-hot-toast'
 
 interface Props { onMenuClick?: () => void }
 
 export default function VendorDashboard({ onMenuClick }: Props) {
-    const { currentUser, userProfile } = useAuth()
+    const { currentUser } = useAuth()
     const [vendorData, setVendorData] = useState<VendorProfile | null>(null)
-    const [stats] = useState({
-        totalSales: 1250000,
-        activeJars: 8,
-        pendingOrders: 3,
-        rating: 4.8
+    const [products, setProducts] = useState<Product[]>([])
+    const [orders, setOrders] = useState<Order[]>([])
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+    const [stats, setStats] = useState({
+        totalSales: 0,
+        activeJars: 0,
+        pendingOrders: 0,
+        rating: 5.0
     })
 
     useEffect(() => {
         if (!currentUser?.uid) return
-        return subscribeToVendorProfile(currentUser.uid, (data) => {
+        
+        const unsubProfile = subscribeToVendorProfile(currentUser.uid, (data) => {
             setVendorData(data)
+            if (data) setStats(prev => ({ ...prev, rating: data.rating }))
         })
+
+        const unsubProducts = subscribeToVendorProducts(currentUser.uid, (data) => {
+            setProducts(data.filter(p => p.status !== 'deleted'))
+        })
+
+        const unsubOrders = subscribeToVendorOrders(currentUser.uid, (data) => {
+            setOrders(data)
+            const total = data.reduce((acc, curr) => acc + (curr.status === 'completed' || curr.status === 'delivered' ? curr.amount : 0), 0)
+            const pending = data.filter(o => o.status === 'pending').length
+            setStats(prev => ({ ...prev, totalSales: total, pendingOrders: pending }))
+        })
+
+        return () => {
+            unsubProfile()
+            unsubProducts()
+            unsubOrders()
+        }
     }, [currentUser])
 
-    const myProducts = mockProducts.filter(p => p.vendorId === currentUser?.uid || p.vendorId === 'v1') // Mocking v1 for demo
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
@@ -39,9 +66,9 @@ export default function VendorDashboard({ onMenuClick }: Props) {
                     </button>
                     <div>
                         <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 tracking-tight uppercase">
-                            Merchant Hub
+                            {vendorData?.name || 'Merchant Hub'}
                         </h1>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest -mt-1">Vendor Dashboard</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest -mt-1">{vendorData?.category || 'Vendor Dashboard'}</p>
                     </div>
                 </div>
 
@@ -49,7 +76,10 @@ export default function VendorDashboard({ onMenuClick }: Props) {
                     <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-wider">
                         <ShieldCheck size={12} /> Live
                     </div>
-                    <button className="h-10 px-5 rounded-xl bg-blue-900 text-white text-xs font-bold flex items-center gap-2 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20">
+                    <button 
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="h-10 px-5 rounded-xl bg-blue-900 text-white text-xs font-bold flex items-center gap-2 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20"
+                    >
                         <Plus size={16} /> Add Product
                     </button>
                 </div>
@@ -64,14 +94,24 @@ export default function VendorDashboard({ onMenuClick }: Props) {
                         { label: 'Pending Orders', value: stats.pendingOrders, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
                         { label: 'Merchant Rating', value: stats.rating, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                        <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group">
                             <div className={`${stat.bg} ${stat.color} w-10 h-10 rounded-2xl flex items-center justify-center mb-4`}>
                                 <stat.icon size={20} />
                             </div>
                             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
                             <div className="flex items-center justify-between">
                                 <h3 className="text-2xl font-black text-slate-900 tracking-tight">{stat.value}</h3>
-                                <div className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">+12%</div>
+                                {stat.label === 'Total Earnings' && (
+                                    <button 
+                                        onClick={() => toast.success('Payout integration coming in next phase')}
+                                        className="text-[10px] font-black text-blue-900 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors uppercase tracking-widest"
+                                    >
+                                        Withdraw
+                                    </button>
+                                )}
+                                {stat.label !== 'Total Earnings' && (
+                                    <div className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">+12%</div>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -97,7 +137,7 @@ export default function VendorDashboard({ onMenuClick }: Props) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {myProducts.length > 0 ? myProducts.map((p) => (
+                                    {products.length > 0 ? products.map((p) => (
                                         <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
@@ -108,7 +148,11 @@ export default function VendorDashboard({ onMenuClick }: Props) {
                                             <td className="px-6 py-4 text-xs font-medium text-slate-500">{p.category}</td>
                                             <td className="px-6 py-4 text-sm font-black text-slate-900">₦{p.price.toLocaleString()}</td>
                                             <td className="px-6 py-4">
-                                                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold">Active</span>
+                                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                                    p.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                                                }`}>
+                                                    {p.status === 'active' ? 'Active' : 'Out of Stock'}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
@@ -121,7 +165,12 @@ export default function VendorDashboard({ onMenuClick }: Props) {
                                             <td colSpan={5} className="px-6 py-20 text-center">
                                                 <Package size={40} className="mx-auto text-slate-200 mb-4" />
                                                 <p className="text-sm font-bold text-slate-400">No products added yet.</p>
-                                                <button className="mt-4 text-xs font-bold text-blue-900 hover:underline">Create your first product</button>
+                                                <button 
+                                                    onClick={() => setIsAddModalOpen(true)}
+                                                    className="mt-4 text-xs font-bold text-blue-900 hover:underline"
+                                                >
+                                                    Create your first product
+                                                </button>
                                             </td>
                                         </tr>
                                     )}
@@ -130,34 +179,57 @@ export default function VendorDashboard({ onMenuClick }: Props) {
                         </div>
                     </div>
 
-                    {/* Active Inquiries / Chats */}
+                    {/* Active Inquiries / Orders */}
                     <div className="space-y-6">
                         <div className="flex items-center justify-between px-2">
-                            <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase">Recent Inquiries</h2>
-                            <span className="w-5 h-5 rounded-full bg-blue-900 text-white text-[10px] font-bold flex items-center justify-center">3</span>
+                            <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase">Recent Orders</h2>
+                            <span className="w-5 h-5 rounded-full bg-blue-900 text-white text-[10px] font-bold flex items-center justify-center">{orders.length}</span>
                         </div>
 
                         <div className="bg-white border border-slate-200 rounded-[2.5rem] p-6 space-y-4 shadow-sm">
-                            {[
-                                { name: 'Sarah Adebayo', msg: 'Is the MacBook Air still available?', time: '2m ago' },
-                                { name: 'Chidi James', msg: 'Interested in the corporate gala setup.', time: '1h ago' },
-                                { name: 'Amina Musa', msg: 'What is the delivery timeline?', time: '3h ago' },
-                            ].map((chat, i) => (
-                                <div key={i} className="flex gap-4 p-4 rounded-3xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer group">
-                                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                                        <MessageSquare size={18} />
+                            {orders.length > 0 ? orders.slice(0, 5).map((order) => (
+                                <div key={order.id} className="flex gap-4 p-4 rounded-3xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer group">
+                                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                        <ShoppingCart size={18} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-0.5">
-                                            <p className="text-xs font-black text-slate-900 truncate">{chat.name}</p>
-                                            <span className="text-[10px] font-medium text-slate-400">{chat.time}</span>
+                                            <p className="text-xs font-black text-slate-900 truncate">{order.buyerName}</p>
+                                            <span className="text-[10px] font-medium text-slate-400">{new Date(order.createdAt).toLocaleDateString()}</span>
                                         </div>
-                                        <p className="text-[11px] text-slate-500 font-medium truncate group-hover:text-slate-700">{chat.msg}</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[11px] text-slate-500 font-medium truncate">{order.productName}</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[11px] font-black text-slate-900">₦{order.amount.toLocaleString()}</span>
+                                                {order.status !== 'completed' && order.status !== 'delivered' && (
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            updateOrderStatus(order.id, 'completed');
+                                                            toast.success('Order marked as completed');
+                                                        }}
+                                                        className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors"
+                                                    >
+                                                        Mark Done
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <span className={`inline-block mt-1 text-[9px] font-black uppercase tracking-widest ${
+                                            order.status === 'completed' || order.status === 'delivered' ? 'text-emerald-500' : 'text-amber-500'
+                                        }`}>
+                                            {order.status}
+                                        </span>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="py-10 text-center">
+                                    <ShoppingCart size={32} className="mx-auto text-slate-200 mb-3" />
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No orders yet</p>
+                                </div>
+                            )}
                             <button className="w-full py-3 rounded-2xl bg-slate-50 text-slate-500 text-xs font-bold hover:bg-blue-50 hover:text-blue-900 transition-colors uppercase tracking-widest mt-2">
-                                Go to Message Center
+                                View Order History
                             </button>
                         </div>
 
@@ -174,6 +246,15 @@ export default function VendorDashboard({ onMenuClick }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* Modals */}
+            {currentUser && (
+                <AddProductModal 
+                    isOpen={isAddModalOpen}
+                    onClose={() => setIsAddModalOpen(false)}
+                    vendorId={currentUser.uid}
+                />
+            )}
         </div>
     )
 }

@@ -5,6 +5,30 @@ import {
     setDoc
 } from 'firebase/firestore';
 
+export interface Product {
+    id: string;
+    name: string;
+    category: string;
+    price: number;
+    description: string;
+    image: string;
+    vendorId: string;
+    status: 'active' | 'out_of_stock' | 'deleted';
+    createdAt: number;
+}
+
+export interface Order {
+    id: string;
+    productId: string;
+    productName: string;
+    buyerId: string;
+    buyerName: string;
+    vendorId: string;
+    amount: number;
+    status: 'pending' | 'shipped' | 'delivered' | 'completed';
+    createdAt: number;
+}
+
 // Represents a real Jar instantiated in the database
 export interface Jar {
     id: string;
@@ -102,6 +126,8 @@ export interface VendorProfile {
     accountName: string;
     rating: number;
     verified: boolean;
+    walletBalance: number; // For actual earnings
+    pendingBalance: number; // For money in active jars
     createdAt: number;
 }
 
@@ -496,4 +522,63 @@ export const joinJarDirect = async (jarId: string, userId: string) => {
     await updateDoc(jarRef, {
         members: arrayUnion(userId)
     });
+};
+
+// ─── PRODUCT & ORDER MANAGEMENT ──────────────────────────────────────────────
+
+export const createProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'status'>) => {
+    const productsRef = collection(db, 'products');
+    const newProduct: Omit<Product, 'id'> = {
+        ...productData,
+        status: 'active',
+        createdAt: Date.now()
+    };
+    const docRef = await addDoc(productsRef, newProduct);
+    return docRef.id;
+};
+
+export const subscribeToVendorProducts = (vendorId: string, callback: (products: Product[]) => void) => {
+    const productsRef = collection(db, 'products');
+    const q = query(productsRef, where('vendorId', '==', vendorId));
+    return onSnapshot(q, snap => {
+        callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    });
+};
+
+export const subscribeToVendorOrders = (vendorId: string, callback: (orders: Order[]) => void) => {
+    const ordersRef = collection(db, 'orders');
+    const q = query(ordersRef, where('vendorId', '==', vendorId));
+    return onSnapshot(q, snap => {
+        callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Order)));
+    });
+};
+
+export const updateProduct = async (productId: string, data: Partial<Product>) => {
+    const docRef = doc(db, 'products', productId);
+    await updateDoc(docRef, data);
+};
+
+export const deleteProduct = async (productId: string) => {
+    const docRef = doc(db, 'products', productId);
+    await setDoc(docRef, { status: 'deleted' }, { merge: true });
+};
+
+export const subscribeToAllProducts = (callback: (products: Product[]) => void) => {
+    const productsRef = collection(db, 'products');
+    const q = query(productsRef, where('status', '==', 'active'));
+    return onSnapshot(q, snap => {
+        callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    });
+};
+
+export const subscribeToAllVendors = (callback: (vendors: VendorProfile[]) => void) => {
+    const vendorsRef = collection(db, 'vendorProfiles');
+    return onSnapshot(vendorsRef, snap => {
+        callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as VendorProfile)));
+    });
+};
+
+export const updateOrderStatus = async (orderId: string, status: Order['status']) => {
+    const docRef = doc(db, 'orders', orderId);
+    await updateDoc(docRef, { status });
 };

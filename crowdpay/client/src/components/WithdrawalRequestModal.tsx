@@ -22,6 +22,7 @@ export interface WithdrawalRequestModalProps {
     jarType: 'solo' | 'collaborative';
     type: 'ajo_rotation' | 'goal_withdrawal';
     round?: number;
+    linkedVendorId?: string;
 }
 
 function fmtMoney(n: number) { return `₦${n.toLocaleString()}`; }
@@ -30,13 +31,13 @@ export default function WithdrawalRequestModal({
     isOpen, onClose,
     jarId, jarName, jarCategory,
     amount, totalVoters, jarType,
-    type, round,
+    type, round, linkedVendorId
 }: WithdrawalRequestModalProps) {
     const { currentUser } = useAuth();
 
     const [reason, setReason] = useState('');
-    const [destinationType, setDestinationType] = useState<'internal_wallet' | 'vendor'>('internal_wallet');
-    const [vendorId, setVendorId] = useState('');
+    const [destinationType, setDestinationType] = useState<'internal_wallet' | 'vendor'>(linkedVendorId ? 'vendor' : 'internal_wallet');
+    const [vendorId, setVendorId] = useState(linkedVendorId ?? '');
     
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);

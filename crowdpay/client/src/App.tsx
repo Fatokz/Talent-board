@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Sidebar from './components/Sidebar'
+import VendorSidebar from './components/VendorSidebar'
+import { useAuth } from './contexts/AuthContext'
 import SocialDashboard from './pages/SocialDashboard'
 import PendingApprovals from './pages/PendingApprovals'
 import GroupManagement from './pages/GroupManagement'
@@ -13,25 +15,31 @@ import SignUpPage from './pages/auth/SignUpPage'
 import Marketplace from './pages/Marketplace'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
-import VendorDashboard from './pages/VendorDashboard'
+import VendorDashboard from './pages/vendor/VendorDashboard'
 import InvitePage from './pages/InvitePage'
 import './index.css'
 
 /* ── Authenticated app shell (sidebar + inner pages) ─────────────────── */
 function AppShell() {
+    const { userProfile } = useAuth()
     const [sidebarOpen, setSidebarOpen] = useState<boolean>(false)
+    const isVendorMode = userProfile?.currentRole === 'vendor'
 
     return (
-        <div className="flex h-screen overflow-hidden bg-slate-50">
+        <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-20 modal-overlay lg:hidden"
+                    className="fixed inset-0 z-[40] modal-overlay lg:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
 
-            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            {isVendorMode ? (
+                <VendorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            ) : (
+                <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            )}
 
             <main className="flex-1 overflow-y-auto">
                 <Routes>
@@ -44,6 +52,10 @@ function AppShell() {
                     
                     {/* Vendor Routes */}
                     <Route path="/vendor" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/products" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/orders" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/payouts" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/settings" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
                 </Routes>
             </main>
         </div>

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { createJar } from '../lib/db';
+import { createJar, subscribeToAllVendors, VendorProfile } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { X, Shuffle, ListOrdered, Crown } from 'lucide-react';
-import { mockVendors } from '../data/mockData';
 
 interface Props {
     isOpen: boolean;
@@ -57,6 +56,7 @@ export default function CreateJarModal({
     const [jarType, setJarType] = useState<'solo' | 'collaborative'>('collaborative');
     const [rotationMethod, setRotationMethod] = useState<'creator' | 'random' | 'join-order'>('creator');
     const [targetDays, setTargetDays] = useState('30');
+    const [vendors, setVendors] = useState<VendorProfile[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -66,6 +66,11 @@ export default function CreateJarModal({
             setVendorId(initialVendorId ?? '');
         }
     }, [isOpen, initialName, initialGoal, initialVendorId]);
+
+    useEffect(() => {
+        const unsub = subscribeToAllVendors((data) => setVendors(data));
+        return () => unsub();
+    }, []);
 
     if (!isOpen) return null;
 
@@ -212,7 +217,7 @@ export default function CreateJarModal({
                                 className="w-full px-4 py-2.5 bg-emerald-50/50 border border-emerald-200 rounded-xl text-sm focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-all font-medium text-emerald-900"
                             >
                                 <option value="">No vendor (Standard Personal Jar)</option>
-                                {mockVendors.map(v => (
+                                {vendors.map(v => (
                                     <option key={v.id} value={v.id}>{v.name} ({v.category})</option>
                                 ))}
                             </select>
