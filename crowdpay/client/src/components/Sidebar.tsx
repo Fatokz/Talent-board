@@ -4,8 +4,9 @@ import {
     LayoutDashboard, Bell, Users, BookOpen, LogOut, X, User as UserIcon, Store, Package, ArrowRightLeft, PlusCircle
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeToUserInvites, createVendorProfile } from '../lib/db'
+import { subscribeToUserInvites, subscribeToVendorProfile } from '../lib/db'
 import Logo from '../assets/crowdpayplain.png'
+import MerchantOnboardingModal from './MerchantOnboardingModal'
 
 interface SidebarProps { isOpen: boolean; onClose: () => void }
 
@@ -13,7 +14,10 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
     const navigate = useNavigate()
     const { currentUser, userProfile, signOut, switchRole } = useAuth()
     const [notifCount, setNotifCount] = useState(0)
+    const [vendorName, setVendorName] = useState<string>('')
     const [switching, setSwitching] = useState(false)
+    const [showRoleSelect, setShowRoleSelect] = useState(false)
+    const [onboardingModal, setOnboardingModal] = useState(false)
 
     // Real-time pending invite count for the badge
     useEffect(() => {
@@ -23,6 +27,13 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
         })
         return unsub
     }, [currentUser])
+
+    useEffect(() => {
+        if (!userProfile?.vendorId) return
+        return subscribeToVendorProfile(userProfile.vendorId, (v: any) => {
+            if (v) setVendorName(v.name)
+        })
+    }, [userProfile?.vendorId])
 
     const currentRole = userProfile?.currentRole || 'user'
 
@@ -47,23 +58,9 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
         try {
             const isVendor = userProfile?.roles?.includes('vendor')
             if (!isVendor) {
-                // Flow to become a vendor
-                const businessName = prompt('Enter your Business Name:')
-                if (!businessName) {
-                    setSwitching(false)
-                    return
-                }
-                const category = prompt('Enter Business Category (e.g. Electronics, Fashion):')
-                await createVendorProfile(currentUser.uid, {
-                    name: businessName,
-                    category: category || 'General',
-                    description: `Verified merchant profile for ${businessName}`,
-                    bankName: '',
-                    accountNumber: '',
-                    accountName: ''
-                });
-                // Note: the createVendorProfile helper in db.ts handles adding 'vendor' to roles
-                navigate('/dashboard/vendor')
+                setOnboardingModal(true)
+                setSwitching(false)
+                return
             } else {
                 const nextRole = currentRole === 'user' ? 'vendor' : 'user'
                 await switchRole(nextRole)
@@ -139,63 +136,90 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                     ))}
                 </div>
 
-                {/* Switch Role Button */}
-                {(userProfile?.roles?.includes('vendor') || userProfile?.kycStatus === 'verified') && (
-                    <div className="mt-8 px-2">
-                        <button 
-                            onClick={handleSwitch}
-                            disabled={switching}
-                            className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black text-[11px] uppercase tracking-widest shadow-lg shadow-emerald-900/40 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
-                        >
-                            {switching ? 'Switching...' : currentRole === 'user' ? 'Switch to Merchant' : 'Switch to Personal'}
-                        </button>
-                    </div>
-                )}
             </nav>
 
             {/* Stats + User + signout */}
             <div className="relative px-5 pb-5 pt-4 border-t border-white/8 bg-white/2 backdrop-blur-md">
                 
-                {/* Profile Switcher Card */}
+                {/* Integrated Role Switcher (Professional Dropdown) */}
                 {currentUser && (
-                    <div className="mb-4">
-                        <button 
-                            onClick={handleSwitch}
-                            disabled={switching}
-                            className={`w-full group relative overflow-hidden p-3.5 rounded-2xl border transition-all text-left shadow-lg ${
-                                userProfile?.roles?.includes('vendor') 
-                                ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-                                : 'bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20'
-                            }`}
-                        >
-                            <div className="flex items-center justify-between mb-2">
-                                <span className={`text-[9px] font-black uppercase tracking-[0.15em] ${userProfile?.roles?.includes('vendor') ? 'text-white/30' : 'text-emerald-400'}`}>
-                                    {userProfile?.roles?.includes('vendor') ? 'Active Profile' : 'Merchant Center'}
-                                </span>
-                                <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                                    !userProfile?.roles?.includes('vendor') ? 'bg-emerald-400' :
-                                    currentRole === 'user' ? 'bg-blue-400' : 'bg-emerald-400'
-                                }`} />
+                    <div className="mb-4 relative">
+                        {/* Dropdown Menu */}
+                        {showRoleSelect && (
+                            <div className="absolute bottom-full left-0 right-0 mb-2 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <p className="px-5 py-3 text-[10px] font-black text-white/30 uppercase tracking-widest border-b border-white/5 bg-white/2">Switch Account Profile</p>
+                                
+                                <button 
+                                    disabled={switching}
+                                    onClick={() => {
+                                        if (currentRole !== 'user') handleSwitch();
+                                        setShowRoleSelect(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-5 py-4 hover:bg-white/5 transition-colors text-left disabled:opacity-50 ${currentRole === 'user' ? 'bg-blue-600/10' : ''}`}
+                                >
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${currentRole === 'user' ? 'bg-blue-600 shadow-lg' : 'bg-white/10'}`}>
+                                        <UserIcon size={14} className="text-white" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[11px] font-black text-white uppercase">Personal Profile</p>
+                                        <p className="text-[9px] text-white/40 font-bold uppercase tracking-tight">{currentUser.displayName || 'CrowdPay User'}</p>
+                                    </div>
+                                    {currentRole === 'user' && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                                </button>
+
+                                {userProfile?.roles?.includes('vendor') ? (
+                                    <button 
+                                        disabled={switching}
+                                        onClick={() => {
+                                            if (currentRole !== 'vendor') handleSwitch();
+                                            setShowRoleSelect(false);
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-5 py-4 hover:bg-white/5 transition-colors text-left border-t border-white/5 disabled:opacity-50 ${currentRole === 'vendor' ? 'bg-emerald-600/10' : ''}`}
+                                    >
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${currentRole === 'vendor' ? 'bg-emerald-600 shadow-lg' : 'bg-white/10'}`}>
+                                            <Store size={14} className="text-white" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-[11px] font-black text-white uppercase">{vendorName || 'Business Profile'}</p>
+                                            <p className="text-[9px] text-emerald-400/60 font-black uppercase tracking-widest">Merchant Center</p>
+                                        </div>
+                                        {currentRole === 'vendor' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => { handleSwitch(); setShowRoleSelect(false); }}
+                                        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-white/5 transition-colors text-left border-t border-white/5"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
+                                            <PlusCircle size={14} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-[11px] font-black text-white uppercase tracking-tight">Become a Merchant</p>
+                                            <p className="text-[9px] text-emerald-400/60 font-black uppercase tracking-widest">Start Selling</p>
+                                        </div>
+                                    </button>
+                                )}
                             </div>
+                        )}
+
+                        <button 
+                            onClick={() => setShowRoleSelect(!showRoleSelect)}
+                            className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/8 transition-all group"
+                        >
                             <div className="flex items-center gap-3">
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-105 ${
-                                    !userProfile?.roles?.includes('vendor') ? 'bg-emerald-600 text-white shadow-emerald-500/20' :
-                                    currentRole === 'user' ? 'bg-blue-600 text-white shadow-blue-500/20' : 'bg-emerald-600 text-white shadow-emerald-500/20'
+                                    currentRole === 'vendor' ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'
                                 }`}>
-                                    {!userProfile?.roles?.includes('vendor') ? <PlusCircle size={18} /> : 
-                                     currentRole === 'user' ? <UserIcon size={18} /> : <Store size={18} />}
+                                    {currentRole === 'vendor' ? <Store size={18} className="text-white" /> : <UserIcon size={18} className="text-white" />}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[12px] font-black text-white truncate uppercase tracking-tight">
-                                        {!userProfile?.roles?.includes('vendor') ? 'Become a Merchant' :
-                                         currentRole === 'user' ? 'Personal' : 'Merchant'}
-                                    </p>
-                                    <p className="text-[9px] text-white/30 font-bold flex items-center gap-1.5 mt-0.5 group-hover:text-white/60 transition-colors uppercase tracking-[0.1em]">
-                                        {!userProfile?.roles?.includes('vendor') ? 'Upgrade account' :
-                                         <><ArrowRightLeft size={9} /> {switching ? 'Switching...' : `Go to ${currentRole === 'user' ? 'Merchant' : 'Personal'}`}</>}
+                                <div className="text-left">
+                                    <p className="text-[11px] font-black text-white uppercase tracking-tight">Active Profile</p>
+                                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest">
+                                        {currentRole === 'vendor' ? (vendorName || 'Merchant') : 'Personal'}
                                     </p>
                                 </div>
                             </div>
+                            <ArrowRightLeft size={12} className="text-white/20 group-hover:text-white/50 transition-colors" />
                         </button>
                     </div>
                 )}
@@ -218,6 +242,15 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                     <LogOut size={14} /> Sign out
                 </button>
             </div>
+
+            {/* Merchant Onboarding Modal Overlay */}
+            {currentUser && (
+                <MerchantOnboardingModal 
+                    isOpen={onboardingModal}
+                    onClose={() => setOnboardingModal(false)}
+                    uid={currentUser.uid}
+                />
+            )}
         </div>
     )
 }

@@ -207,7 +207,23 @@ export default function SignUpPage() {
                                     </div>
                                     <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                                         <label className="block text-xs font-bold text-slate-700 mb-2">Category</label>
-                                        <input type="text" value={form.businessCategory} onChange={update('businessCategory')} placeholder="e.g. Electronics, Fashion" required className="auth-input" />
+                                        <select 
+                                            value={form.businessCategory} 
+                                            onChange={(e) => setForm(prev => ({ ...prev, businessCategory: e.target.value }))}
+                                            required 
+                                            className="auth-input appearance-none cursor-pointer"
+                                        >
+                                            <option value="" disabled>Select a category</option>
+                                            <option value="Electronics & Gadgets">Electronics & Gadgets</option>
+                                            <option value="Fashion & Apparel">Fashion & Apparel</option>
+                                            <option value="Food & Beverage">Food & Beverage</option>
+                                            <option value="Health & Beauty">Health & Beauty</option>
+                                            <option value="Home & Furniture">Home & Furniture</option>
+                                            <option value="Professional Services">Professional Services</option>
+                                            <option value="Education & Training">Education & Training</option>
+                                            <option value="Travel & Leisure">Travel & Leisure</option>
+                                            <option value="General Retail">General Retail</option>
+                                        </select>
                                     </div>
                                 </>
                             )}
