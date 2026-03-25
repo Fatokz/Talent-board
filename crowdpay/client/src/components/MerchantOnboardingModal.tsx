@@ -47,7 +47,9 @@ export default function MerchantOnboardingModal({ isOpen, onClose, uid }: Props)
                 description: `Verified merchant profile for ${form.name}`,
                 bankName: '',
                 accountNumber: '',
-                accountName: ''
+                accountName: '',
+                walletBalance: 0,
+                pendingBalance: 0
             })
             
             toast.success('Merchant profile created!')

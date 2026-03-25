@@ -286,6 +286,21 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                     <p className="text-[11px] sm:text-sm text-slate-500 leading-tight">Your collective wallets are secure. All jars are protected by unanimous consensus.</p>
                 </div>
 
+                {/* Dual Role Clause Banner */}
+                {kycProfile?.roles?.includes('vendor') && (
+                    <div className="mb-7 p-5 rounded-3xl bg-blue-50 border border-blue-100 flex items-center gap-4 animate-in slide-in-from-top-4 duration-500">
+                        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-blue-600 shadow-sm shrink-0">
+                            <Store size={24} />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-[13px] font-black text-blue-900 tracking-tight leading-none mb-1">Dual-Account Activation</p>
+                            <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+                                You are currently in <span className="font-black uppercase">Personal Mode</span>. To manage your products, view orders, and settle payouts, switch to your <span className="font-black uppercase">Merchant Merchant Profile</span> in the sidebar.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Wallet Balance Card */}
                 <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 rounded-3xl p-6 sm:p-8 mb-7 shadow-[0_20px_40px_-15px_rgba(30,58,138,0.5)] relative overflow-hidden">
                     <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />

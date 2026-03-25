@@ -87,7 +87,7 @@ export default async function handler(req, res) {
           status: 'completed',
           reference: txnId,
           description: `Contribution to Jar: ${doc.data().name || 'Savings Jar'}`,
-          jarId: jarId,
+          jarId: String(jarId),
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
         });
 

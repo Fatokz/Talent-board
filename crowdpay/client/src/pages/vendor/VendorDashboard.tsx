@@ -86,6 +86,19 @@ export default function VendorDashboard({ onMenuClick }: Props) {
             </div>
 
             <div className="max-w-7xl mx-auto p-6 md:p-8">
+                {/* Dual Role Clause Banner */}
+                <div className="mb-8 p-6 rounded-[2rem] bg-emerald-50 border border-emerald-100 flex items-center gap-5 animate-in slide-in-from-top-4 duration-500">
+                    <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm shrink-0">
+                        <Users size={28} />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-sm font-black text-emerald-900 tracking-tight leading-none mb-1.5 uppercase">Merchant Active Mode</p>
+                        <p className="text-xs text-emerald-700 font-medium leading-relaxed max-w-2xl">
+                            You are currently managing your <span className="font-black">Business Profile</span>. To contribute to your Ajo jars, view personal savings, or join new groups, switch back to your <span className="font-black">Personal Profile</span> via the sidebar.
+                        </p>
+                    </div>
+                </div>
+
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
                     {[

@@ -126,14 +126,25 @@ export default function AjoRotationPanel({ jar, members, isCreator, onRequestPay
                         <p className="text-white font-bold text-sm">
                             You're next to receive {contributionAmount > 0 ? `₦${(contributionAmount * totalMembers).toLocaleString()}` : 'the pot'}.
                         </p>
-                        <p className="text-blue-300 text-xs mt-0.5">Submit your bank details to request the payout.</p>
+                        <p className="text-blue-300 text-xs mt-0.5">
+                            {jar.payoutStatus === 'pending_request' || jar.payoutStatus === 'approved' 
+                                ? 'Your request is currently being processed by the system.'
+                                : 'Submit your bank details to request the payout.'}
+                        </p>
                     </div>
-                    <button
-                        onClick={onRequestPayout}
-                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white text-blue-900 text-sm font-black shadow-lg hover:-translate-y-0.5 transition-transform whitespace-nowrap"
-                    >
-                        Request Payout <ArrowRight size={14} />
-                    </button>
+                    {(!jar.payoutStatus || jar.payoutStatus === 'paid') && (
+                        <button
+                            onClick={onRequestPayout}
+                            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white text-blue-900 text-sm font-black shadow-lg hover:-translate-y-0.5 transition-transform whitespace-nowrap"
+                        >
+                            Request Payout <ArrowRight size={14} />
+                        </button>
+                    )}
+                    {(jar.payoutStatus === 'pending_request' || jar.payoutStatus === 'approved') && (
+                        <div className="px-4 py-2.5 rounded-xl bg-blue-800/50 text-blue-200 text-sm font-black border border-blue-700/50 flex items-center gap-2">
+                            <Clock size={14} className="animate-spin" /> Processing...
+                        </div>
+                    )}
                 </div>
             )}
 

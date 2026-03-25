@@ -51,7 +51,7 @@ export default function SignUpPage() {
                 trustScore: 500,
                 walletBalance: 0,
                 kycStatus: 'unverified',
-                roles: [role],
+                roles: role === 'vendor' ? ['user', 'vendor'] : ['user'],
                 currentRole: role,
                 createdAt: serverTimestamp()
             });
@@ -64,13 +64,16 @@ export default function SignUpPage() {
                     description: `Verified merchant profile for ${form.businessName}`,
                     bankName: '',
                     accountNumber: '',
-                    accountName: ''
+                    accountName: '',
+                    walletBalance: 0,
+                    pendingBalance: 0
                 });
             }
 
-            // 4. Navigate home
+            // 4. Navigate home or vendor dashboard
             toast.success('Account created successfully!')
-            navigate(redirectPath || '/dashboard')
+            const target = role === 'vendor' ? '/dashboard/vendor' : '/dashboard'
+            navigate(redirectPath || target)
         } catch (err: any) {
             const msg = friendlyAuthError(err, 'Failed to create account. Please try again.')
             setError(msg)
@@ -88,10 +91,11 @@ export default function SignUpPage() {
             await signInWithGoogle()
 
             // When they arrive here, auth.currentUser is set
-            // Check if they already exist in database? (For hackathon speed, we'll assume the 
-            // merge happens flawlessly by setting it with merge: true if you want, or just redirecting)
+            // If they are new, ensureUserProfile (called via AuthContext) will set 'user' role
+            // We can optionally force the vendor role if they selected it in the UI
             toast.success('Signed in with Google!')
-            navigate(redirectPath || '/dashboard')
+            const target = role === 'vendor' ? '/dashboard/vendor' : '/dashboard'
+            navigate(redirectPath || target)
         } catch (err: any) {
             const msg = friendlyAuthError(err, 'Google sign-in failed. Please try again.')
             setError(msg)

@@ -89,7 +89,7 @@ export default async function handler(req, res) {
                 type: 'jar_contribution', // Set as contribution for transparency mapping
                 status: 'completed',
                 reference: txnRef,
-                jarId, // CRITICAL: Missing jarId was preventing mapping in Group Management
+                jarId: String(jarId), // CRITICAL: Force string for consistent mapping
                 description: `Contribution to ${jarName || jarDoc.data().name} from Wallet`,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
             });

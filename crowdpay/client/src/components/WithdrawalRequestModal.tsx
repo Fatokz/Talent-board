@@ -10,6 +10,7 @@ import { X, CheckCircle, Info, FileText, Wallet, Store, QrCode } from 'lucide-re
 import { useAuth } from '../contexts/AuthContext';
 import WalletPinModal from './WalletPinModal';
 import toast from 'react-hot-toast';
+import { finalizeJarPayout } from '../lib/db';
 
 export interface WithdrawalRequestModalProps {
     isOpen: boolean;
@@ -97,11 +98,8 @@ export default function WithdrawalRequestModal({
                 // We must trigger the payout execution manually since there's no voting path.
                 if (totalVoters === 0 && data.requestId) {
                     try {
-                        await fetch('/api/execute-payout', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ requestId: data.requestId })
-                        });
+                        await finalizeJarPayout(jarId, amount, destinationType, vendorId);
+                        toast.success('Funds distributed successfully');
                     } catch (payoutErr) {
                         console.error('Auto-payout trigger failed:', payoutErr);
                     }

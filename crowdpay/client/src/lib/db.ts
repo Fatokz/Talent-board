@@ -1,8 +1,9 @@
 import { db } from './firebase';
 import { 
     collection, getDocs, query, where, addDoc,
-    onSnapshot, doc, updateDoc, arrayUnion, getDoc,
-    setDoc
+    onSnapshot, doc, updateDoc, 
+    getDoc, serverTimestamp,
+    arrayUnion, setDoc
 } from 'firebase/firestore';
 
 export interface Product {
@@ -40,7 +41,7 @@ export interface Jar {
     frequency: string;
     vendorId?: string; // ID of a verified vendor if this jar pays out directly to a merchant
     contributionAmount?: number; // Fixed per-cycle amount (Ajo) or minimum contribution (others)
-    status: 'active' | 'completed' | 'PAYOUT_COMPLETED';
+    status: 'active' | 'completed' | 'PAYOUT_COMPLETED' | 'archived';
     createdBy: string;
     createdAt: number;
     targetDays?: number; // How many days the jar is active for
@@ -52,6 +53,7 @@ export interface Jar {
     currentRound?: number;      // Index into rotationOrder (which member is next)
     paidThisCycle?: string[];   // UIDs who have paid in the current cycle
     disbursedRounds?: number;   // How many payout rounds have been completed
+    payoutStatus?: 'pending_request' | 'approved' | 'paid';
 }
 
 // Represents a payout / withdrawal request submitted for group vote
@@ -252,6 +254,87 @@ export const subscribeToJarWithdrawals = (
     });
 };
 
+// ─── PAYOUT EXECUTION ────────────────────────────────────────────────────────
+
+export const finalizeJarPayout = async (
+    jarId: string,
+    amount: number,
+    destinationType: 'internal_wallet' | 'vendor',
+    vendorId?: string
+) => {
+    const jarRef = doc(db, 'jars', jarId);
+    
+    // 1. Calculate Fees (200 Naira + 5% CrowdPay Commission)
+    const fixedFee = 200;
+    const commissionPct = 0.05;
+    const commission = amount * commissionPct;
+    const totalDeduction = fixedFee + commission;
+    const netPayout = Math.max(0, amount - totalDeduction);
+
+    // 2. Update Destination
+    if (destinationType === 'vendor' && vendorId) {
+        const vendorRef = doc(db, 'vendorProfiles', vendorId);
+        const vendorSnap = await getDoc(vendorRef);
+        if (vendorSnap.exists()) {
+            const currentBal = vendorSnap.data().walletBalance || 0;
+            await updateDoc(vendorRef, {
+                walletBalance: currentBal + netPayout
+            });
+            
+            // Record Vendor Transaction
+            const txnsRef = collection(db, 'transactions');
+            await addDoc(txnsRef, {
+                uid: vendorId,
+                type: 'vendor_payout',
+                amount: netPayout,
+                jarId,
+                description: `Payout from Jar: ${jarId} (Less Fees: ₦${totalDeduction})`,
+                timestamp: serverTimestamp(),
+                status: 'completed'
+            });
+        }
+    }
+
+    // 3. Mark Jar as Paid and Archive/Reset if needed
+    const jarSnap = await getDoc(jarRef);
+    const jarData = jarSnap.data();
+    
+    if (jarData?.category === 'Traditional') {
+        const nextDisbursed = (jarData.disbursedRounds || 0) + 1;
+        const totalMembers = jarData.members?.length || 1;
+        
+        if (nextDisbursed >= totalMembers) {
+            // FULL RESET after everyone collected
+            await updateDoc(jarRef, {
+                disbursedRounds: 0,
+                currentRound: 0,
+                raised: 0,
+                balance: 0,
+                payoutStatus: undefined,
+                status: 'active' // Back to default as requested
+            });
+        } else {
+            await updateDoc(jarRef, {
+                disbursedRounds: nextDisbursed,
+                currentRound: nextDisbursed, // Move to next person in rotation
+                raised: 0,
+                balance: 0,
+                payoutStatus: undefined
+            });
+        }
+    } else {
+        // Goal-based jar (Product or Charity)
+        await updateDoc(jarRef, {
+            payoutStatus: 'paid',
+            status: 'archived', // Reset/Archive as requested
+            balance: 0,
+            paidAt: Date.now()
+        });
+    }
+
+    return { success: true, netPayout, totalDeduction };
+};
+
 // 6b. Realtime listener — all transactions for a specific jar
 export const subscribeToJarTransactions = (
     jarId: string,
@@ -261,7 +344,6 @@ export const subscribeToJarTransactions = (
     const q = query(ref, where('jarId', '==', jarId));
     return onSnapshot(q, snap => {
         const txns = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        // Sort by timestamp if not already sorted by firestore (usually not guaranteed without orderBy)
         txns.sort((a: any, b: any) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
         callback(txns);
     });
@@ -277,8 +359,6 @@ export const subscribeToJarMembers = (
         return () => {};
     }
     const ref = collection(db, 'users');
-    // Firestore 'in' query supports up to 10-30 IDs usually. 
-    // For large groups we might need a different approach, but for Ajo (max 12-20) this is fine.
     const q = query(ref, where('uid', 'in', uids));
     return onSnapshot(q, snap => {
         const members = snap.docs.map(d => d.data() as UserProfile);
@@ -295,13 +375,11 @@ export const subscribeToUserPendingWithdrawals = (
     const q = query(ref, where('status', '==', 'pending_votes'));
     return onSnapshot(q, snap => {
         const requests = snap.docs.map(d => ({ id: d.id, ...d.data() })) as WithdrawalRequest[];
-        // Filter to requests where the user is NOT the requester (they vote, not self)
         callback(requests.filter(r => r.requestedBy !== userId));
     });
 };
 
 // 8. Cast a vote on a withdrawal request
-// Automatically flips status to 'approved' when all votes are in and unanimous
 export const castWithdrawalVote = async (
     requestId: string,
     voterId: string,
@@ -314,19 +392,15 @@ export const castWithdrawalVote = async (
 
     const data = snap.data() as Omit<WithdrawalRequest, 'id'>;
 
-    // Record this vote
     const updatedVotes = {
         ...data.votes,
         [voterId]: { decision, ...(reason ? { reason } : {}) },
     };
 
-    // Check if all members have voted
     const voteCount = Object.keys(updatedVotes).length;
     const allVoted = voteCount >= data.totalVoters;
     const unanimous = allVoted && Object.values(updatedVotes).every(v => v.decision === 'approved');
     const anyDeclined = Object.values(updatedVotes).some(v => v.decision === 'declined');
-
-    console.log(`[Consensus Check] Request: ${requestId}, Votes: ${voteCount}/${data.totalVoters}, Unanimous: ${unanimous}, AnyDeclined: ${anyDeclined}`);
 
     const newStatus: WithdrawalRequest['status'] =
         unanimous ? 'approved' :
@@ -343,7 +417,6 @@ export const castWithdrawalVote = async (
 
 // ─── AJO ROTATION ────────────────────────────────────────────────────────────
 
-// 9. Set the payout rotation order for an Ajo jar (creator only)
 export const setAjoRotationOrder = async (jarId: string, rotationOrder: string[]) => {
     const jarRef = doc(db, 'jars', jarId);
     await updateDoc(jarRef, {
@@ -354,7 +427,6 @@ export const setAjoRotationOrder = async (jarId: string, rotationOrder: string[]
     });
 };
 
-// 10. Mark a member as having paid in the current cycle
 export const markCyclePaid = async (jarId: string, userId: string) => {
     const jarRef = doc(db, 'jars', jarId);
     await updateDoc(jarRef, {
@@ -362,17 +434,15 @@ export const markCyclePaid = async (jarId: string, userId: string) => {
     });
 };
 
-// 11. Advance to the next round after a successful payout
 export const advanceAjoRound = async (jarId: string, completedRound: number) => {
     const jarRef = doc(db, 'jars', jarId);
     await updateDoc(jarRef, {
         currentRound: completedRound + 1,
         disbursedRounds: completedRound + 1,
-        paidThisCycle: [],  // Reset contributions for the new cycle
+        paidThisCycle: [],
     });
 };
 
-// 12. Mark a withdrawal request as disbursed (post Interswitch payment)
 export const markWithdrawalDisbursed = async (requestId: string) => {
     const reqRef = doc(db, 'withdrawalRequests', requestId);
     await updateDoc(reqRef, { status: 'disbursed' });
@@ -410,6 +480,8 @@ export const createVendorProfile = async (uid: string, data: Omit<VendorProfile,
         id: uid,
         rating: 5.0,
         verified: false,
+        walletBalance: 0,
+        pendingBalance: 0,
         createdAt: Date.now()
     };
 
@@ -444,12 +516,10 @@ export const updateUserProfile = async (uid: string, data: Partial<UserProfile>)
     await updateDoc(docRef, data);
 };
 
-// 13. Search registered users by name or email prefix (case-insensitive prefix match)
 export const searchUsers = async (q: string): Promise<UserProfile[]> => {
     if (!q || q.trim().length < 2) return [];
     const term = q.trim().toLowerCase();
     const usersRef = collection(db, 'users');
-    // Fetch all users and filter client-side (suitable for small user bases)
     const snap = await getDocs(usersRef);
     return snap.docs
         .map(d => ({ uid: d.id, ...d.data() } as UserProfile))
@@ -457,12 +527,9 @@ export const searchUsers = async (q: string): Promise<UserProfile[]> => {
             u.fullName?.toLowerCase().includes(term) ||
             u.email?.toLowerCase().includes(term)
         )
-        .slice(0, 8); // max 8 suggestions
+        .slice(0, 8);
 };
 
-// ─── INVITE ACCEPT / DECLINE ─────────────────────────────────────────────────
-
-// 14. Realtime listener — invites sent TO the current user (by their email)
 export const subscribeToUserInvites = (
     email: string,
     callback: (invites: Invite[]) => void
@@ -474,7 +541,6 @@ export const subscribeToUserInvites = (
     });
 };
 
-// 15. Realtime listener — invites SENT by a user (creator sees responses)
 export const subscribeToSentInvites = (
     inviterId: string,
     callback: (invites: Invite[]) => void
@@ -486,21 +552,17 @@ export const subscribeToSentInvites = (
     });
 };
 
-// 16. Accept an invite — adds user to jar members
 export const acceptInvite = async (inviteId: string, userId: string) => {
     const inviteRef = doc(db, 'invites', inviteId);
     const inviteSnap = await getDoc(inviteRef);
     if (!inviteSnap.exists()) throw new Error('Invite not found');
 
     const { jarId } = inviteSnap.data() as Invite;
-    // Add user to jar members
     const jarRef = doc(db, 'jars', jarId);
     await updateDoc(jarRef, { members: arrayUnion(userId) });
-    // Mark invite accepted
     await updateDoc(inviteRef, { status: 'accepted' });
 };
 
-// 17. Decline an invite with an optional reason
 export const declineInvite = async (inviteId: string, reason?: string) => {
     const inviteRef = doc(db, 'invites', inviteId);
     await updateDoc(inviteRef, {
@@ -508,7 +570,7 @@ export const declineInvite = async (inviteId: string, reason?: string) => {
         ...(reason ? { declineReason: reason } : {}),
     });
 };
-// 18. Fetch a single Jar by ID
+
 export const getJarById = async (jarId: string): Promise<Jar | null> => {
     const jarRef = doc(db, 'jars', jarId);
     const snap = await getDoc(jarRef);
@@ -516,15 +578,12 @@ export const getJarById = async (jarId: string): Promise<Jar | null> => {
     return { id: snap.id, ...snap.data() } as Jar;
 };
 
-// 19. Direct join — for shared links
 export const joinJarDirect = async (jarId: string, userId: string) => {
     const jarRef = doc(db, 'jars', jarId);
     await updateDoc(jarRef, {
         members: arrayUnion(userId)
     });
 };
-
-// ─── PRODUCT & ORDER MANAGEMENT ──────────────────────────────────────────────
 
 export const createProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'status'>) => {
     const productsRef = collection(db, 'products');

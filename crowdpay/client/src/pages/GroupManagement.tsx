@@ -140,7 +140,8 @@ export default function GroupManagement({ onMenuClick }: Props) {
         description: `A ${jar.frequency} ${jar.category} group.`,
         color: 'from-blue-600 to-blue-500',
         goalReached: jar.raised >= jar.goal && jar.goal > 0,
-        creatorId: jar.createdBy
+        creatorId: jar.createdBy,
+        jarType: jar.jarType
     }));
 
     const displayJars = mappedJars;
