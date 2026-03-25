@@ -7,8 +7,9 @@
  */
 import { useState } from 'react';
 import { X, CheckCircle, Info, FileText, Wallet, Store, QrCode } from 'lucide-react';
-import { createWithdrawalRequest } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
+import WalletPinModal from './WalletPinModal';
+import toast from 'react-hot-toast';
 
 export interface WithdrawalRequestModalProps {
     isOpen: boolean;
@@ -38,6 +39,7 @@ export default function WithdrawalRequestModal({
     
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [pinModalOpen, setPinModalOpen] = useState(false);
 
     if (!isOpen) return null;
 
@@ -58,44 +60,57 @@ export default function WithdrawalRequestModal({
             return;
         }
 
-        const initials = (currentUser.displayName ?? 'U')
-            .split(' ')
-            .map(w => w[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2);
+        setPinModalOpen(true);
+    };
 
+    const executeRequest = async (pin: string) => {
+        if (!currentUser) return;
+
+        setLoading(true);
         try {
-            setLoading(true);
-            const votingDeadline = Date.now() + 72 * 60 * 60 * 1000;
-
-            await createWithdrawalRequest({
-                jarId,
-                jarName,
-                jarCategory,
-                requestedBy: currentUser.uid,
-                requestedByName: currentUser.displayName ?? 'Unknown',
-                requestedByInitials: initials,
-                amount,
-                reason,
-                destinationType,
-                ...(destinationType === 'vendor' && { vendorId }),
-                totalVoters,
-                type,
-                ...(round !== undefined && { round }),
-                votingDeadline,
+            const res = await fetch(`/api/withdraw?action=jar-request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    uid: currentUser.uid,
+                    pin,
+                    jarId,
+                    jarName,
+                    jarCategory,
+                    amount,
+                    reason,
+                    destinationType,
+                    vendorId,
+                    totalVoters,
+                    type,
+                    round
+                })
             });
 
-            setLoading(false);
-            setSuccess(true);
+            const data = await res.json();
+            if (data.success) {
+                setLoading(false);
+                setSuccess(true);
+            } else {
+                toast.error(data.message || 'Failed to submit request');
+                setLoading(false);
+            }
         } catch (err) {
             console.error('Failed to create withdrawal request', err);
+            toast.error('Network error occurred.');
             setLoading(false);
         }
     };
 
     return (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
+            <WalletPinModal 
+                isOpen={pinModalOpen} 
+                onClose={() => setPinModalOpen(false)} 
+                onSuccess={(p) => { setPinModalOpen(false); executeRequest(p); }}
+                title="Authorise Request"
+                subtitle={`Enter your 4-digit PIN to request this ${fmtMoney(amount)} payout.`}
+            />
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={handleClose} />
             <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
                 <div className="h-1 bg-gradient-to-r from-blue-900 via-blue-500 to-emerald-500 shrink-0" />

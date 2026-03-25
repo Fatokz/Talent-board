@@ -13,6 +13,7 @@ export interface JarTemplate {
     goalReached: boolean
     goalReachedFor?: string
     creatorId?: string
+    contributionAmount?: number
 }
 
 export interface GroupMember {

@@ -12,7 +12,7 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     /** Called when PIN is verified — proceed with your action */
-    onSuccess: () => void;
+    onSuccess: (pin: string) => void;
     title?: string;
     subtitle?: string;
 }
@@ -67,7 +67,7 @@ export default function WalletPinModal({ isOpen, onClose, onSuccess, title = 'En
             const data = await res.json();
 
             if (data.success) {
-                onSuccess();
+                onSuccess(fullPin);
                 onClose();
             } else {
                 const msg = data.message || 'Incorrect PIN. Please try again.'

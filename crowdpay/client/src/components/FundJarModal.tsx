@@ -2,19 +2,25 @@ import { useState, useEffect } from 'react'
 import { X, Lock, Coins, ShieldCheck, CreditCard, Loader2 } from 'lucide-react'
 import { JarTemplate } from '../types'
 import { useAuth } from '../contexts/AuthContext'
+import { UserProfile } from '../lib/db'
+import WalletPinModal from './WalletPinModal'
 import toast from 'react-hot-toast'
+import { Wallet } from 'lucide-react'
 
 interface Props {
     isOpen: boolean
     onClose: () => void
     jar: JarTemplate
+    profile?: UserProfile | null
 }
 
-export default function FundJarModal({ isOpen, onClose, jar }: Props) {
+export default function FundJarModal({ isOpen, onClose, jar, profile }: Props) {
     const { currentUser } = useAuth()
     const [amount, setAmount] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [fundingSource, setFundingSource] = useState<'interswitch' | 'wallet'>('interswitch')
+    const [pinModalOpen, setPinModalOpen] = useState(false)
 
     // Reset state every time the modal opens so stale loading/error never persists
     useEffect(() => {
@@ -39,6 +45,15 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
 
         if (numAmount > 1000000) {
             toast.error('Maximum single transaction limit is ₦1,000,000')
+            return
+        }
+
+        if (fundingSource === 'wallet') {
+            if ((profile?.walletBalance || 0) < numAmount) {
+                toast.error('Insufficient wallet balance.')
+                return
+            }
+            setPinModalOpen(true)
             return
         }
 
@@ -132,7 +147,35 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
     const numAmount = Number(amount.replace(/,/g, '')) || 0
     const rawFee = numAmount * 0.015
     const iswFee = Math.min(rawFee, 2000) // Interswitch caps at ₦2000
-    const totalCharge = numAmount + iswFee
+    const totalCharge = fundingSource === 'wallet' ? numAmount : (numAmount + iswFee)
+
+    const executeWalletFunding = async (pin: string) => {
+        setLoading(true)
+        try {
+            const res = await fetch(`/api/withdraw?action=fund-jar-from-wallet`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    uid: currentUser?.uid,
+                    pin,
+                    jarId: jar.id,
+                    jarName: jar.name,
+                    amount: numAmount
+                })
+            })
+            const data = await res.json()
+            if (data.success) {
+                toast.success('Jar funded from wallet successfully!')
+                onClose()
+            } else {
+                toast.error(data.message || 'Funding failed')
+            }
+        } catch (e) {
+            toast.error('Network error occurred.')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -141,6 +184,13 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
                 
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <WalletPinModal 
+                        isOpen={pinModalOpen} 
+                        onClose={() => setPinModalOpen(false)} 
+                        onSuccess={executeWalletFunding}
+                        title="Authorise Payment"
+                        subtitle={`Confirm payment of ₦${numAmount.toLocaleString()} to ${jar.name}`}
+                    />
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                             <Coins size={20} className="text-white" />
@@ -157,6 +207,25 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
 
                 {/* Body */}
                 <form onSubmit={handleFund} className="p-6">
+                    {/* Source Selector */}
+                    <div className="flex p-1 bg-slate-100 rounded-2xl mb-6">
+                        <button type="button" onClick={() => setFundingSource('interswitch')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all ${fundingSource === 'interswitch' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                            <CreditCard size={14} /> Card / ISW
+                        </button>
+                        <button type="button" onClick={() => setFundingSource('wallet')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all ${fundingSource === 'wallet' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                            <Wallet size={14} /> My Wallet
+                        </button>
+                    </div>
+
+                    {fundingSource === 'wallet' && (
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-6 flex items-center justify-between">
+                             <span className="text-xs font-bold text-emerald-700">Wallet Balance</span>
+                             <span className="text-sm font-black text-emerald-900">₦{(profile?.walletBalance || 0).toLocaleString()}</span>
+                        </div>
+                    )}
+
                     <div className="mb-6">
                         <label className="block text-sm font-bold text-slate-700 mb-2">Contribution Amount (₦)</label>
                         <div className="relative">
@@ -184,10 +253,12 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
                                 <span className="font-bold text-slate-900">₦{numAmount.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-slate-500 flex items-center gap-1">
-                                    Interswitch Fee (1.5%)
+                                 <span className="text-slate-500 flex items-center gap-1">
+                                    {fundingSource === 'wallet' ? 'Service Fee (Internal)' : 'Interswitch Fee (1.5%)'}
                                 </span>
-                                <span className="font-bold text-slate-900">₦{iswFee.toLocaleString()}</span>
+                                <span className="font-bold text-slate-900">
+                                    {fundingSource === 'wallet' ? '₦0' : `₦${iswFee.toLocaleString()}`}
+                                </span>
                             </div>
                             <div className="h-px w-full bg-slate-200 my-2" />
                             <div className="flex justify-between text-base">
@@ -218,7 +289,9 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
                         className="w-full h-14 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-black text-base shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                     >
                         {loading ? (
-                            <><Loader2 size={20} className="animate-spin" /> Processing Secure Payment...</>
+                            <><Loader2 size={20} className="animate-spin" /> Processing Payment...</>
+                        ) : fundingSource === 'wallet' ? (
+                            <><ShieldCheck size={20} /> Pay from Wallet</>
                         ) : (
                             <><CreditCard size={20} /> Pay with Interswitch WebPAY</>
                         )}

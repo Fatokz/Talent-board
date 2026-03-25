@@ -16,7 +16,8 @@ export const jarTemplates: JarTemplate[] = [
         daysLeft: 0,
         governanceModel: 'Unanimous Consensus',
         color: 'from-blue-600 to-blue-500',
-        goalReached: false
+        goalReached: false,
+        contributionAmount: 1000
     },
     {
         id: 2,

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { X, Building2, AlertTriangle, ArrowUpRight } from 'lucide-react'
-import { apiFetch } from '../utils/api'
 import { useAuth } from '../contexts/AuthContext'
 import { UserProfile } from '../lib/db'
 import WalletPinModal from './WalletPinModal'
@@ -18,6 +17,7 @@ export default function WithdrawWalletModal({ isOpen, onClose, profile }: Props)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState(false)
+    const [txnRef, setTxnRef] = useState('')
     const [pinModalOpen, setPinModalOpen] = useState(false)
 
     // Reset state on every open
@@ -27,6 +27,7 @@ export default function WithdrawWalletModal({ isOpen, onClose, profile }: Props)
             setLoading(false)
             setError('')
             setSuccess(false)
+            setTxnRef('')
         }
     }, [isOpen])
 
@@ -60,23 +61,25 @@ export default function WithdrawWalletModal({ isOpen, onClose, profile }: Props)
         setPinModalOpen(true)
     }
 
-    const executeWithdrawal = async () => {
+    const executeWithdrawal = async (pin: string) => {
         const val = Number(amount)
         setLoading(true)
         setError('')
         
         try {
-            const res = await apiFetch('/api/withdraw', {
+            const res = await fetch(`/api/withdraw?action=wallet-withdraw`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     uid: currentUser?.uid,
-                    amount: val
+                    amount: val,
+                    pin
                 })
             })
             const json = await res.json()
             if (res.ok && json.success) {
                 setSuccess(true)
+                setTxnRef(json.data.txnRef || '')
                 toast.success('Withdrawal successful!')
             } else {
                 const msg = json.message || 'Withdrawal failed'
@@ -96,7 +99,7 @@ export default function WithdrawWalletModal({ isOpen, onClose, profile }: Props)
         <WalletPinModal
             isOpen={pinModalOpen}
             onClose={() => setPinModalOpen(false)}
-            onSuccess={() => { setPinModalOpen(false); executeWithdrawal(); }}
+            onSuccess={(p) => { setPinModalOpen(false); executeWithdrawal(p); }}
             title="Authorise Withdrawal"
             subtitle="Enter your 4-digit wallet PIN to confirm this withdrawal."
         />
@@ -117,7 +120,15 @@ export default function WithdrawWalletModal({ isOpen, onClose, profile }: Props)
                                 <ArrowUpRight size={32} />
                             </div>
                             <h3 className="font-black text-slate-900 text-lg mb-2">Withdrawal Successful!</h3>
-                            <p className="text-sm text-slate-500 mb-6">Your funds are being transferred to your {profile.bankName} account.</p>
+                            <p className="text-sm text-slate-500 mb-2">Your funds are being transferred to your {profile.bankName} account.</p>
+                            
+                            {txnRef && (
+                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-6">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Reference ID</p>
+                                    <p className="text-xs font-mono font-bold text-slate-600 break-all">{txnRef}</p>
+                                </div>
+                            )}
+
                             <button onClick={onClose} className="w-full py-3 rounded-xl font-bold bg-slate-900 text-white">Done</button>
                         </div>
                     ) : (

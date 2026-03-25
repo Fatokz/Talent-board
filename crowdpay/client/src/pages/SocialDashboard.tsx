@@ -57,6 +57,14 @@ function JarCard({ jar, onWithdraw, onActivate, onContribute }: { jar: JarTempla
 
                 <p className="text-xs text-slate-400 leading-relaxed mb-4 line-clamp-2">{jar.description}</p>
 
+                {jar.contributionAmount && jar.contributionAmount > 0 && (
+                    <div className="flex items-center gap-2 mb-4 bg-slate-50 border border-slate-100 p-2.5 rounded-xl">
+                        <Wallet size={14} className="text-emerald-600" />
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tight">Requirement:</span>
+                        <span className="text-xs font-black text-slate-900">{fmtMoney(jar.contributionAmount)} <span className="text-[10px] font-medium text-slate-400">/ cycle</span></span>
+                    </div>
+                )}
+
                 {/* Progress */}
                 <div className="mb-4">
                     <div className="flex justify-between text-xs mb-2">
@@ -180,7 +188,8 @@ export default function SocialDashboard({ onMenuClick }: Props) {
         governanceModel: 'Unanimous Consensus',
         description: `A ${jar.frequency} ${jar.category} contribution group.`,
         color: 'from-blue-600 to-blue-500',
-        goalReached: jar.raised >= jar.goal && jar.goal > 0
+        goalReached: jar.raised >= jar.goal && jar.goal > 0,
+        contributionAmount: jar.contributionAmount
     }));
 
     const activeJars = mappedJars;
@@ -417,6 +426,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                     isOpen={!!fundingJar}
                     onClose={() => setFundingJar(null)}
                     jar={fundingJar}
+                    profile={kycProfile}
                 />
             )}
 
