@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-    ArrowDownLeft, ArrowUpRight, Search, Filter, Download,
+    ArrowDownLeft, ArrowUpRight, Search, Download,
     CheckCircle, Clock, AlertCircle, TrendingDown, TrendingUp, BookOpen, Menu, Loader2, Coins
 } from 'lucide-react'
 import { db } from '../lib/firebase'

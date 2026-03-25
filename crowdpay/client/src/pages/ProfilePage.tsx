@@ -24,7 +24,10 @@ export default function ProfilePage({ onMenuClick }: Props) {
     // Bank state
     const [bankCode, setBankCode] = useState('')
     const [accountNumber, setAccountNumber] = useState('')
-    const [banks, setBanks] = useState<{name: string, code: string}[]>([])
+    const [banks, setBanks] = useState<{name: string, code: string}[]>(() => {
+        const saved = localStorage.getItem('crowdpay_banks')
+        return saved ? JSON.parse(saved) : []
+    })
 
     // PIN state
     const [newPin, setNewPin] = useState('')
@@ -41,11 +44,16 @@ export default function ProfilePage({ onMenuClick }: Props) {
                 if (json.success && json.data) {
                     const sortedBanks = json.data.sort((a: any, b: any) => a.name.localeCompare(b.name))
                     setBanks(sortedBanks)
+                    // Cache for future use
+                    localStorage.setItem('crowdpay_banks', JSON.stringify(sortedBanks))
                 }
             } catch (err) {
                 console.error("Failed to fetch banks", err)
             }
         }
+        
+        // Only fetch if we don't have them yet, or every session to keep it fresh
+        // But the localStorage initializer above ensures no "loading" flicker
         fetchBanks()
     }, [])
 
