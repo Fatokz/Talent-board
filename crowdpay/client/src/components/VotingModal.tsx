@@ -23,6 +23,7 @@ export default function VotingModal({ isOpen, jar, approval, request, onClose }:
     const [reason, setReason] = useState('')
     const [loading, setLoading] = useState(false)
     const [done, setDone] = useState(false)
+    const [payoutStatus, setPayoutStatus] = useState<'pending' | 'success' | 'failed' | null>(null)
 
     if (!isOpen) return null
 
@@ -60,12 +61,20 @@ export default function VotingModal({ isOpen, jar, approval, request, onClose }:
                 )
                 
                 if (newStatus === 'approved') {
+                    setPayoutStatus('pending');
                     // Trigger the payout to intelligently credit the user's CrowdPay Wallet!
-                    await fetch('/api/execute-payout', {
+                    const res = await fetch('/api/execute-payout', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ requestId: request.id })
                     })
+                    const payoutData = await res.json();
+                    if (payoutData.success) {
+                        setPayoutStatus('success');
+                    } else {
+                        console.error('Payout failed:', payoutData.message);
+                        setPayoutStatus('failed');
+                    }
                 }
             } catch (err) {
                 console.error('Vote failed', err)
@@ -111,7 +120,11 @@ export default function VotingModal({ isOpen, jar, approval, request, onClose }:
                         </h3>
                         <p className="text-sm text-slate-500 leading-relaxed mb-8">
                             {vote === 'approve'
-                                ? 'Your approval has been recorded. Funds will release once all remaining members vote.'
+                                ? payoutStatus === 'success' 
+                                    ? 'Success! Unanimous consensus reached and funds have been credited to the wallet.'
+                                    : payoutStatus === 'failed'
+                                    ? 'Consensus reached, but internal payout failed. Please contact support.'
+                                    : 'Your approval has been recorded. Funds will release once all remaining members vote.'
                                 : 'Your decline with reason has been logged and shared with all group members.'}
                         </p>
                         <button onClick={onClose} className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-blue-900 to-blue-700 text-white font-bold text-sm shadow-md shadow-blue-900/30">Done</button>

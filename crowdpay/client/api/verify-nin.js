@@ -22,21 +22,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Invalid NIN. Must be 11 digits.' });
     }
 
-    // --- PROFESSIONAL KILL SWITCH FOR SANDBOX BYPASS ---
-    const isBypassEnabled = process.env.VITE_ENABLE_KYC_BYPASS === 'true';
-    if (isBypassEnabled && (nin === '11111111111' || nin === '00000000000')) {
-        return res.status(200).json({
-            success: true,
-            data: {
-                status: 'verified',
-                firstName: firstName || 'Test',
-                lastName: lastName || 'User',
-                gender: 'm',
-                message: 'Sandbox Bypass Active'
-            }
-        });
-    }
-    // ---------------------------------------------------
 
     try {
         const clientId = process.env.INTERSWITCH_CLIENT_ID;

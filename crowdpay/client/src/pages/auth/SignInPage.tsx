@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Shield, Eye, EyeOff, Lock, ArrowRight, Zap, CheckCircle } from 'lucide-react'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../lib/firebase'
@@ -10,6 +10,8 @@ import toast from 'react-hot-toast'
 
 export default function SignInPage() {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    const redirectPath = searchParams.get('redirect')
     const { signInWithGoogle } = useAuth()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -26,7 +28,7 @@ export default function SignInPage() {
         setError('')
         try {
             await signInWithEmailAndPassword(auth, email, password)
-            navigate('/dashboard')
+            navigate(redirectPath || '/dashboard')
             toast.success('Welcome back!')
         } catch (err: any) {
             const msg = friendlyAuthError(err, 'Failed to sign in. Please check your credentials.')
@@ -43,7 +45,7 @@ export default function SignInPage() {
         try {
             await signInWithGoogle()
             toast.success('Signed in with Google!')
-            navigate('/dashboard')
+            navigate(redirectPath || '/dashboard')
         } catch (err: any) {
             const msg = friendlyAuthError(err, 'Google sign-in failed. Please try again.')
             setError(msg)
@@ -99,7 +101,7 @@ export default function SignInPage() {
             </div>
 
             {/* Right: form */}
-            <div className="flex-1 flex items-center justify-center bg-slate-50 px-8 py-12">
+            <div className="flex-1 flex items-center justify-center bg-slate-50 px-4 sm:px-8 py-8 sm:py-12">
                 <div className="w-full max-w-md">
                     <div className="lg:hidden flex items-center gap-2.5 mb-10 justify-center">
                         <div className="w-10 h-10 flex items-center justify-center">
@@ -168,7 +170,7 @@ export default function SignInPage() {
                         <div className="mt-6 pt-6 border-t border-slate-100 text-center">
                             <p className="text-sm text-slate-500">
                                 Don't have an account?{' '}
-                                <button onClick={() => navigate('/signup')} className="font-bold text-blue-900 hover:underline">Create one</button>
+                                <button onClick={() => navigate(redirectPath ? `/signup?redirect=${redirectPath}` : '/signup')} className="font-bold text-blue-900 hover:underline">Create one</button>
                             </p>
                         </div>
 

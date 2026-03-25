@@ -89,6 +89,21 @@ export default function WithdrawalRequestModal({
 
             const data = await res.json();
             if (data.success) {
+                // SOLO JAR AUTO-PAYOUT TRIGGER
+                // If totalVoters is 0, the request is created as 'approved'. 
+                // We must trigger the payout execution manually since there's no voting path.
+                if (totalVoters === 0 && data.requestId) {
+                    try {
+                        await fetch('/api/execute-payout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ requestId: data.requestId })
+                        });
+                    } catch (payoutErr) {
+                        console.error('Auto-payout trigger failed:', payoutErr);
+                    }
+                }
+
                 setLoading(false);
                 setSuccess(true);
             } else {
@@ -111,6 +126,7 @@ export default function WithdrawalRequestModal({
                 title="Authorise Request"
                 subtitle={`Enter your 4-digit PIN to request this ${fmtMoney(amount)} payout.`}
                 onlyCollect={true}
+                isExternalLoading={loading}
             />
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={handleClose} />
             <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
@@ -192,7 +208,7 @@ export default function WithdrawalRequestModal({
                                     placeholder="e.g. VEND_9823XJS"
                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all font-bold text-slate-900 placeholder:text-slate-400 uppercase"
                                 />
-                                <p className="text-[10px] text-slate-500 mt-2 ml-1">The funds will bypass your wallet and go straight to the vendor.</p>
+                                <p className="text-[10px] text-slate-500 mt-2 ml-1">The funds will skip your wallet and go straight to the vendor.</p>
                             </div>
                         )}
 

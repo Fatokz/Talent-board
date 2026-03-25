@@ -158,6 +158,8 @@ export default function TransactionLedger({ onMenuClick }: Props) {
     const [search, setSearch] = useState('')
     const [typeFilter, setTypeFilter] = useState<'all' | 'deposit' | 'withdrawal' | 'jar_contribution' | 'jar_withdrawal'>('all')
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 10
 
     useEffect(() => {
         if (!currentUser) return
@@ -190,6 +192,12 @@ export default function TransactionLedger({ onMenuClick }: Props) {
         return matchSearch && matchType
     })
 
+    const totalPages = Math.ceil(filtered.length / itemsPerPage)
+    const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+    // Reset page when filter/search changes
+    useEffect(() => { setCurrentPage(1) }, [search, typeFilter])
+
     const totalDeposits = txns.filter(t => t.type === 'deposit' && t.status === 'completed').reduce((s, t) => s + t.amount, 0)
     const totalWithdrawals = txns.filter(t => t.type === 'withdrawal' && t.status === 'completed').reduce((s, t) => s + t.amount, 0)
 
@@ -207,43 +215,43 @@ export default function TransactionLedger({ onMenuClick }: Props) {
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
             {/* Header */}
-            <div className="bg-white border-b border-slate-100 px-6 py-5 shadow-sm sticky top-0 z-20">
-                <div className="flex items-center justify-between flex-wrap gap-4 mb-5">
+            <div className="bg-white border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-5 shadow-sm sticky top-0 z-20">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-4 sm:mb-5">
                     <div className="flex items-center gap-3">
-                        <button onClick={onMenuClick} className="lg:hidden w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                            <Menu size={17} className="text-slate-600" />
+                        <button onClick={onMenuClick} className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                            <Menu size={15} className="text-slate-600 sm:size-[17px]" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Transaction Ledger</h1>
-                            <p className="text-sm text-slate-400 mt-0.5">Your personal record of deposits, contributions and withdrawals.</p>
+                            <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">Transaction Ledger</h1>
+                            <p className="hidden sm:block text-sm text-slate-400 mt-0.5">Your personal record of deposits, contributions and withdrawals.</p>
                         </div>
                     </div>
-                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
-                        <Download size={14} /> Save Receipt
+                    <button onClick={() => window.print()} className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl border border-slate-200 bg-white text-[11px] sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                        <Download size={13} className="sm:size-[14px]" /> Save Receipt
                     </button>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                     {[
                         { icon: TrendingDown, label: 'Total Funded', value: fmtMoney(totalDeposits), grad: 'from-emerald-700 to-emerald-500' },
                         { icon: TrendingUp, label: 'Total Withdrawn', value: fmtMoney(totalWithdrawals), grad: 'from-indigo-700 to-indigo-500' },
-                        { icon: BookOpen, label: 'Ledger Entries', value: txns.length, grad: 'from-blue-900 to-blue-700' },
-                        { icon: AlertCircle, label: 'Success Rate', value: '100%', grad: 'from-blue-600 to-blue-400' },
+                        { icon: BookOpen, label: 'Entries', value: txns.length, grad: 'from-blue-900 to-blue-700' },
+                        { icon: AlertCircle, label: 'Rate', value: '100%', grad: 'from-blue-600 to-blue-400' },
                     ].map(s => (
-                        <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.grad} flex items-center justify-center shrink-0 shadow-md`}>
-                                <s.icon size={18} className="text-white" />
+                        <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3">
+                            <div className={`w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br ${s.grad} flex items-center justify-center shrink-0 shadow-md`}>
+                                <s.icon size={14} className="sm:size-[18px] text-white" />
                             </div>
-                            <div className="truncate">
-                                <p className="text-lg font-black text-slate-900 truncate">{s.value}</p>
-                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{s.label}</p>
+                            <div className="truncate min-w-0">
+                                <p className="text-[14px] sm:text-lg font-black text-slate-900 truncate leading-tight">{s.value}</p>
+                                <p className="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-tight truncate">{s.label}</p>
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
 
-            <div className="p-4 lg:p-8">
+            <div className="p-4 sm:p-8">
                 {/* Filters */}
                 <div className="flex items-center gap-3 mb-6 flex-wrap">
                     <div className="relative flex-1 min-w-[280px]">
@@ -276,7 +284,7 @@ export default function TransactionLedger({ onMenuClick }: Props) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.length > 0 ? filtered.map(tx => <TxRow key={tx.id} tx={tx} onClick={() => setSelectedTx(tx)} />) : (
+                                {paginated.length > 0 ? paginated.map(tx => <TxRow key={tx.id} tx={tx} onClick={() => setSelectedTx(tx)} />) : (
                                     <tr>
                                         <td colSpan={5} className="px-5 py-24 text-center">
                                             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -291,6 +299,29 @@ export default function TransactionLedger({ onMenuClick }: Props) {
                         </table>
                     </div>
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="mt-8 flex items-center justify-center gap-4">
+                        <button 
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            className="bg-white border border-slate-200 px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 transition-all font-sans"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm font-black text-slate-900 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 font-sans">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button 
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            className="bg-white border border-slate-200 px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:border-slate-300 disabled:opacity-40 transition-all font-sans"
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </div>
 
             {selectedTx && <TransactionDetailModal tx={selectedTx} onClose={() => setSelectedTx(null)} />}

@@ -17,13 +17,16 @@ interface Props {
     subtitle?: string;
     /** If true, skip internal verification and call onSuccess(pin) directly on submit */
     onlyCollect?: boolean;
+    /** If true, parent is still processing — disable all interactions */
+    isExternalLoading?: boolean;
 }
 
 export default function WalletPinModal({ 
     isOpen, onClose, onSuccess, 
     title = 'Enter Wallet PIN', 
     subtitle = 'Enter your 4-digit PIN to authorise this transaction.',
-    onlyCollect = false
+    onlyCollect = false,
+    isExternalLoading = false
 }: Props) {
     const { currentUser } = useAuth();
     const [pin, setPin] = useState<string[]>(['', '', '', '']);
@@ -76,11 +79,8 @@ export default function WalletPinModal({
         setError('');
 
         if (onlyCollect) {
-            // Skip server-side verification in the modal, let the caller handle it.
-            setTimeout(() => {
-                onSuccess(fullPin);
-                setLoading(false);
-            }, 50);
+            // Keep loading true to prevent double-click until modal closes or parent finishes
+            onSuccess(fullPin);
             return;
         }
 
@@ -141,7 +141,8 @@ export default function WalletPinModal({
                                     value={digit}
                                     onChange={e => handleChange(i, e.target.value)}
                                     onKeyDown={e => handleKeyDown(i, e)}
-                                    className="w-12 h-14 text-center text-2xl font-black text-slate-900 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
+                                    disabled={loading || isExternalLoading}
+                                    className="w-12 h-14 text-center text-2xl font-black text-slate-900 bg-slate-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all disabled:opacity-50"
                                 />
                             ))}
                         </div>
@@ -153,9 +154,9 @@ export default function WalletPinModal({
                             </div>
                         )}
 
-                        <button type="submit" disabled={loading || pin.join('').length !== 4}
+                        <button type="submit" disabled={loading || isExternalLoading || pin.join('').length !== 4}
                             className="w-full py-3.5 rounded-2xl bg-slate-900 text-white font-black text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition-all active:scale-95">
-                            {loading ? <><Loader2 size={16} className="animate-spin" /> Verifying…</> : 'Confirm'}
+                            { (loading || isExternalLoading) ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : 'Confirm'}
                         </button>
                     </form>
                 </div>

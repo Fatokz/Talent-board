@@ -14,6 +14,7 @@ import Marketplace from './pages/Marketplace'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import VendorDashboard from './pages/VendorDashboard'
+import InvitePage from './pages/InvitePage'
 import './index.css'
 
 /* ── Authenticated app shell (sidebar + inner pages) ─────────────────── */
@@ -60,6 +61,7 @@ function App() {
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/signin" element={<SignInPage />} />
                     <Route path="/signup" element={<SignUpPage />} />
+                    <Route path="/invite/:jarId" element={<InvitePage />} />
 
                     {/* Authenticated app shell — all dashboard sub-routes live here */}
                     <Route

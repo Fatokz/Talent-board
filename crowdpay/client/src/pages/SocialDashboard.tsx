@@ -202,7 +202,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
         governanceModel: 'Unanimous Consensus',
         description: `A ${jar.frequency} ${jar.category} contribution group.`,
         color: 'from-blue-600 to-blue-500',
-        goalReached: jar.raised >= jar.goal && jar.goal > 0,
+        goalReached: jar.raised >= jar.goal && jar.goal > 0 && jar.status !== 'PAYOUT_COMPLETED',
         contributionAmount: jar.contributionAmount
     }));
 
@@ -248,41 +248,41 @@ export default function SocialDashboard({ onMenuClick }: Props) {
     return (
         <div className="min-h-screen bg-slate-50 font-sans">
             {/* Topbar */}
-            <div className="bg-white border-b border-slate-100 px-6 h-[68px] flex items-center justify-between sticky top-0 z-20 shadow-sm">
-                <div className="flex items-center gap-3  flex-1">
-                    <button onClick={onMenuClick} className="lg:hidden w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                        <Menu size={17} className="text-slate-600" />
+            <div className="bg-white border-b border-slate-100 px-4 sm:px-6 h-[68px] flex items-center justify-between sticky top-0 z-20 shadow-sm">
+                <div className="flex items-center gap-2 sm:gap-3 flex-1">
+                    <button onClick={onMenuClick} className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                        <Menu size={15} className="text-slate-600 sm:size-[17px]" />
                     </button>
-                    <h1 className="text-xl font-black text-slate-800 hidden md:block mr-2">Dashboard</h1>
+                    <h1 className="text-lg sm:text-xl font-black text-slate-800 hidden md:block mr-2">Dashboard</h1>
                     <div className="relative max-w-sm flex-1">
-                        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search jars, members…"
-                            className="w-full pl-10 pr-4 h-10 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-blue-900 focus:bg-white transition-colors" />
+                        <Search size={13} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none sm:size-[14px]" />
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search jars…"
+                            className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 h-9 sm:h-10 rounded-lg sm:rounded-xl border border-slate-200 bg-slate-50 text-[13px] sm:text-sm focus:outline-none focus:border-blue-900 focus:bg-white transition-colors" />
                     </div>
                 </div>
-                <div className="flex items-center gap-3 ml-4">
-                    <button onClick={() => navigate('/dashboard/notifications')} className="relative w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
-                        <Bell size={17} className="text-slate-500" />
+                <div className="flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4">
+                    <button onClick={() => navigate('/dashboard/notifications')} className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
+                        <Bell size={15} className="text-slate-500 sm:size-[17px]" />
                         {notifCount > 0 && (
-                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 border-2 border-white flex items-center justify-center text-[9px] font-black text-white px-1">
+                            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] rounded-full bg-red-500 border-2 border-white flex items-center justify-center text-[8px] sm:text-[9px] font-black text-white px-1">
                                 {notifCount > 9 ? '9+' : notifCount}
                             </span>
                         )}
                     </button>
                     <button onClick={() => requireKyc(() => setNewJarModal(true))}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-900 to-blue-700 text-white text-sm font-bold shadow-md shadow-blue-900/30 whitespace-nowrap">
-                        <Plus size={15} /> New Jar
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-900 to-blue-700 text-white text-[12px] sm:text-sm font-bold shadow-md shadow-blue-900/30 whitespace-nowrap">
+                        <Plus size={14} className="sm:size-[15px]" /> New
                     </button>
                 </div>
             </div>
 
-            <div className="p-8">
+            <div className="p-4 sm:p-8">
                 {/* Welcome */}
-                <div className="mb-7">
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-1">
-                        Welcome back, <span className="bg-gradient-to-r from-blue-900 to-emerald-500 bg-clip-text text-transparent">{currentUser?.displayName?.split(' ')[0] || 'Member'}!</span>
+                <div className="mb-5 sm:mb-7">
+                    <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1">
+                        Welcome, <span className="bg-gradient-to-r from-blue-900 to-emerald-500 bg-clip-text text-transparent">{currentUser?.displayName?.split(' ')[0] || 'Member'}</span>
                     </h1>
-                    <p className="text-sm text-slate-500">Your collective wallets are secure. All jars are protected by unanimous consensus.</p>
+                    <p className="text-[11px] sm:text-sm text-slate-500 leading-tight">Your collective wallets are secure. All jars are protected by unanimous consensus.</p>
                 </div>
 
                 {/* Wallet Balance Card */}

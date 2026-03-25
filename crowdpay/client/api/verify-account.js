@@ -19,22 +19,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Invalid Account Number or missing Bank Code.' });
     }
 
-    // --- PROFESSIONAL KILL SWITCH FOR SANDBOX BYPASS ---
-    const isBypassEnabled = process.env.VITE_ENABLE_KYC_BYPASS === 'true';
-    const bypassAccountNumber = process.env.VITE_BYPASS_ACCOUNT_NUMBER || '1000000000';
-    
-    if (isBypassEnabled && (accountNumber === bypassAccountNumber || accountNumber === '0000000000')) {
-        return res.status(200).json({
-            success: true,
-            data: {
-                accountName: fullName || 'TEST USER ACCOUNT',
-                accountNumber: accountNumber,
-                bankName: 'Test Bank',
-                message: 'Sandbox Bypass Active'
-            }
-        });
-    }
-    // ---------------------------------------------------
 
     try {
         const clientId = process.env.INTERSWITCH_CLIENT_ID;

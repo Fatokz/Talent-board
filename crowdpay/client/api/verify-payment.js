@@ -40,24 +40,24 @@ export default async function handler(req, res) {
     const stringToHash = `${productId}${txnRef}${macKey || 'TEST_MAC_KEY'}`;
     const hash = crypto.createHash('sha512').update(stringToHash).digest('hex');
 
-    const isBypassEnabled = process.env.VITE_ENABLE_KYC_BYPASS === 'true' || process.env.NODE_ENV !== 'production';
+    const isProd = process.env.NODE_ENV === 'production';
+    const baseUrl = isProd 
+      ? 'https://webpay.interswitchng.com/collections/api/v1/gettransaction.json'
+      : 'https://qa.interswitchng.com/collections/api/v1/gettransaction.json';
+
     let isSuccess = false;
     let verifiedAmountKobo = amountInKobo;
+    let interswitchResponse = null;
 
-    if (isBypassEnabled) {
-      console.log('Verification Bypass Enabled - Skipping Interswitch call');
+    const merchantCode = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
+    const response = await axios.get(
+      `${baseUrl}?merchantcode=${merchantCode}&transactionreference=${txnRef}&amount=${amountInKobo}`,
+      { headers: { Hash: hash } }
+    );
+    interswitchResponse = response.data;
+    if (interswitchResponse && (interswitchResponse.ResponseCode === '00' || interswitchResponse.ResponseCode === '000')) {
       isSuccess = true;
-    } else {
-      const merchantCode = process.env.INTERSWITCH_MERCHANT_CODE || 'MX000000000000';
-      const response = await axios.get(
-        `${baseUrl}?merchantcode=${merchantCode}&transactionreference=${txnRef}&amount=${amountInKobo}`,
-        { headers: { Hash: hash } }
-      );
-      const data = response.data;
-      if (data && (data.ResponseCode === '00' || data.ResponseCode === '000')) {
-        isSuccess = true;
-        verifiedAmountKobo = Number(data.Amount || amountInKobo);
-      }
+      verifiedAmountKobo = Number(interswitchResponse.Amount || amountInKobo);
     }
 
     if (isSuccess) {
@@ -97,14 +97,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ 
         message: 'Payment Verified & Jar Updated successfully', 
         success: true, 
-        interswitchData: data 
+        interswitchData: interswitchResponse 
       });
 
     } else {
       return res.status(400).json({ 
         message: 'Payment Failed or Verification error', 
         success: false, 
-        interswitchData: data 
+        interswitchData: interswitchResponse 
       });
     }
 

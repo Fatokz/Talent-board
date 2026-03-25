@@ -33,6 +33,7 @@ export default async function handler(req, res) {
       if (!reqDoc.exists) throw new Error('Withdrawal Request does not exist!');
       
       const requestData = reqDoc.data();
+      console.log(`[Payout Trigger] Request: ${requestId}, Status: ${requestData.status}, Amount: ${requestData.amount}`);
 
       if (requestData.status === 'disbursed') {
         throw new Error('This request has already been disbursed to the wallet.');
@@ -97,10 +98,14 @@ export default async function handler(req, res) {
       }
 
       // 4. Update Jar stats natively
-      let updatedTotalPooled = (jarData.totalPooled || 0);
       if (requestData.type === 'goal_withdrawal') {
-        updatedTotalPooled = Math.max(0, updatedTotalPooled - requestAmount);
-        t.update(jarRef, { totalPooled: updatedTotalPooled, status: 'PAYOUT_COMPLETED' });
+        const updatedTotalPooled = Math.max(0, (jarData.totalPooled || 0) - requestAmount);
+        const updatedRaised = Math.max(0, (jarData.raised || 0) - requestAmount);
+        t.update(jarRef, { 
+            totalPooled: updatedTotalPooled, 
+            raised: updatedRaised,
+            status: 'PAYOUT_COMPLETED' 
+        });
       } else if (requestData.type === 'ajo_rotation') {
         const nextRound = (jarData.currentRound || 0) + 1;
         t.update(jarRef, { currentRound: nextRound, disbursedRounds: nextRound, paidThisCycle: [] });

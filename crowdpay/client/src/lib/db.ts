@@ -294,9 +294,12 @@ export const castWithdrawalVote = async (
     };
 
     // Check if all members have voted
-    const allVoted = Object.keys(updatedVotes).length >= data.totalVoters;
+    const voteCount = Object.keys(updatedVotes).length;
+    const allVoted = voteCount >= data.totalVoters;
     const unanimous = allVoted && Object.values(updatedVotes).every(v => v.decision === 'approved');
     const anyDeclined = Object.values(updatedVotes).some(v => v.decision === 'declined');
+
+    console.log(`[Consensus Check] Request: ${requestId}, Votes: ${voteCount}/${data.totalVoters}, Unanimous: ${unanimous}, AnyDeclined: ${anyDeclined}`);
 
     const newStatus: WithdrawalRequest['status'] =
         unanimous ? 'approved' :
@@ -476,5 +479,20 @@ export const declineInvite = async (inviteId: string, reason?: string) => {
     await updateDoc(inviteRef, {
         status: 'declined',
         ...(reason ? { declineReason: reason } : {}),
+    });
+};
+// 18. Fetch a single Jar by ID
+export const getJarById = async (jarId: string): Promise<Jar | null> => {
+    const jarRef = doc(db, 'jars', jarId);
+    const snap = await getDoc(jarRef);
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as Jar;
+};
+
+// 19. Direct join — for shared links
+export const joinJarDirect = async (jarId: string, userId: string) => {
+    const jarRef = doc(db, 'jars', jarId);
+    await updateDoc(jarRef, {
+        members: arrayUnion(userId)
     });
 };

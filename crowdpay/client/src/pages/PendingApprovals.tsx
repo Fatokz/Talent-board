@@ -389,7 +389,7 @@ export default function PendingApprovals({ onMenuClick }: Props) {
             </div>
 
             {/* ── Content ── */}
-            <div className="p-6 max-w-2xl mx-auto space-y-8">
+            <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6 sm:space-y-8">
 
                 {/* Urgent banner */}
                 {urgent.length > 0 && showVotes && (

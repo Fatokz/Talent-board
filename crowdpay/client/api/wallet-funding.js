@@ -54,30 +54,25 @@ export default async function handler(req, res) {
     if (!txnRef || !amount || !uid) return res.status(400).json({ message: 'Missing details' });
 
     try {
-      const isBypassEnabled = process.env.VITE_ENABLE_KYC_BYPASS === 'true';
       let isSuccess = false;
-
-      if (isBypassEnabled) {
+      const amountInKobo = Math.round(Number(amount) * 100);
+      const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
+      const macKey = process.env.INTERSWITCH_MAC_KEY;
+      const hash = crypto.createHash('sha512')
+        .update(`${productId}${txnRef}${macKey || 'TEST_MAC_KEY'}`)
+        .digest('hex');
+      const baseUrl = process.env.NODE_ENV === 'production'
+        ? 'https://webpay.interswitchng.com/collections/api/v1/gettransaction.json'
+        : 'https://qa.interswitchng.com/collections/api/v1/gettransaction.json';
+        
+      const response = await fetch(`${baseUrl}?merchantcode=${productId}&transactionreference=${txnRef}&amount=${amountInKobo}`, {
+        headers: { Hash: hash }
+      });
+      const data = await response.json();
+      if (data && (data.ResponseCode === '00' || data.ResponseCode === '000')) {
         isSuccess = true;
-      } else {
-        const amountInKobo = Math.round(Number(amount) * 100);
-        const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
-        const macKey = process.env.INTERSWITCH_MAC_KEY;
-        const hash = crypto.createHash('sha512')
-          .update(`${productId}${txnRef}${macKey || 'TEST_MAC_KEY'}`)
-          .digest('hex');
-        const baseUrl = process.env.NODE_ENV === 'production'
-          ? 'https://webpay.interswitchng.com/collections/api/v1/gettransaction.json'
-          : 'https://qa.interswitchng.com/collections/api/v1/gettransaction.json';
-        const response = await fetch(`${baseUrl}?merchantcode=${productId}&transactionreference=${txnRef}&amount=${amountInKobo}`, {
-          headers: { Hash: hash }
-        });
-        const data = await response.json();
-        if (data && (data.ResponseCode === '00' || data.ResponseCode === '000')) {
-          isSuccess = true;
-          // Use Interswitch Amount (Kobo) converted to Naira as source of truth
-          req.verifiedAmount = Number(data.Amount) / 100;
-        }
+        // Use Interswitch Amount (Kobo) converted to Naira as source of truth
+        req.verifiedAmount = Number(data.Amount) / 100;
       }
 
       if (isSuccess) {
