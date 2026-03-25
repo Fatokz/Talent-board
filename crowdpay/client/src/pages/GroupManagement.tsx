@@ -4,13 +4,13 @@ import {
     TrendingUp, Lock, Menu, MoreHorizontal,
 } from 'lucide-react'
 import Logo from '../assets/crowdpayplain.png'
-import { jarTemplates, groupMembers } from '../data/mockData'
+import { jarTemplates } from '../data/mockData'
 import { JarTemplate, GroupMember } from '../types'
 import InviteMemberModal from '../components/InviteMemberModal'
 import AjoRotationPanel from '../components/AjoRotationPanel'
 import FundJarModal from '../components/FundJarModal'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeToUserJars, Jar } from '../lib/db'
+import { subscribeToUserJars, Jar, subscribeToJarMembers, subscribeToJarTransactions, UserProfile } from '../lib/db'
 
 function fmtMoney(n: number) { return `₦${n.toLocaleString()}` }
 
@@ -86,6 +86,8 @@ export default function GroupManagement({ onMenuClick }: Props) {
     const [inviteModal, setInviteModal] = useState(false)
     const [fundModal, setFundModal] = useState(false)
     const [realJars, setRealJars] = useState<Jar[]>([])
+    const [jarMembers, setJarMembers] = useState<UserProfile[]>([])
+    const [jarTransactions, setJarTransactions] = useState<any[]>([])
 
     useEffect(() => {
         if (!currentUser) return;
@@ -96,7 +98,19 @@ export default function GroupManagement({ onMenuClick }: Props) {
             }
         });
         return () => unsubscribe();
-    }, [currentUser, selectedId]);
+    }, [currentUser]);
+
+    const selectedJar = realJars.find(j => j.id === String(selectedId)) || realJars[0];
+
+    useEffect(() => {
+        if (!selectedJar) return;
+        const subMembers = subscribeToJarMembers(selectedJar.members, (m) => setJarMembers(m));
+        const subTxns = subscribeToJarTransactions(selectedJar.id, (t) => setJarTransactions(t));
+        return () => {
+            subMembers();
+            subTxns();
+        };
+    }, [selectedJar?.id]);
 
     const mappedJars: JarTemplate[] = realJars.map(jar => ({
         id: jar.id as any,
@@ -257,20 +271,71 @@ export default function GroupManagement({ onMenuClick }: Props) {
                     {/* Members */}
                     <div className="px-8 py-6">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-black text-slate-900">Members ({groupMembers.length})</h3>
+                            <h3 className="text-base font-black text-slate-900">Members ({jarMembers.length})</h3>
                             <div className="flex gap-2">
                                 {['All', 'Approved', 'Pending'].map(f => (
                                     <button key={f} className="text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 hover:border-blue-900 transition-colors">{f}</button>
                                 ))}
                             </div>
                         </div>
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[100px]">
                             <div className="px-5 py-3 border-b border-slate-100 grid grid-cols-3 gap-3">
                                 {['Member', 'Status', ''].map(h => (
                                     <span key={h} className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{h}</span>
                                 ))}
                             </div>
-                            {groupMembers.map(m => <MemberRow key={m.id} m={m} />)}
+                            {jarMembers.length === 0 ? (
+                                <div className="p-8 text-center text-slate-400 text-xs font-bold italic">Loading members...</div>
+                            ) : (
+                                jarMembers.map(m => (
+                                    <MemberRow 
+                                        key={m.uid} 
+                                        m={{
+                                            id: m.uid,
+                                            name: m.fullName,
+                                            initials: m.fullName.split(' ').map(n => n[0]).join(''),
+                                            role: m.uid === selected.creatorId ? 'Creator' : 'Member',
+                                            status: 'approved' // Registered members are already approved
+                                        }} 
+                                    />
+                                ))
+                            )}
+                        </div>
+
+                        {/* Transparency Activity list */}
+                        <div className="mt-10 mb-4">
+                            <h3 className="text-base font-black text-slate-900 mb-4">Transaction Details (Transparency)</h3>
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="px-5 py-3 border-b border-slate-100 grid grid-cols-4 gap-3">
+                                    {['User', 'Type', 'Amount', 'Date'].map(h => (
+                                        <span key={h} className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{h}</span>
+                                    ))}
+                                </div>
+                                {jarTransactions.length === 0 ? (
+                                    <div className="p-8 text-center text-slate-400 text-xs font-bold italic">No transactions yet. Be the first to fund this jar!</div>
+                                ) : (
+                                    jarTransactions.map(t => {
+                                        const payer = jarMembers.find(m => m.uid === t.uid);
+                                        return (
+                                            <div key={t.id} className="grid grid-cols-4 gap-3 px-5 py-3.5 border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                                                        {payer ? payer.fullName.split(' ').map(n => n[0]).join('') : '?'}
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-900 truncate">{payer ? payer.fullName : 'Unknown User'}</span>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-500 self-center capitalize">{t.type.replace('_', ' ')}</span>
+                                                <span className={`text-[11px] font-black self-center ${t.type === 'jar_contribution' ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                                    {t.type === 'jar_contribution' ? '+' : '-'}{fmtMoney(t.amount)}
+                                                </span>
+                                                <span className="text-[10px] text-slate-400 self-center">
+                                                    {t.timestamp?.seconds ? new Date(t.timestamp.seconds * 1000).toLocaleDateString() : 'Pending'}
+                                                </span>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
                         </div>
 
                         {/* Trust notice */}
@@ -289,11 +354,11 @@ export default function GroupManagement({ onMenuClick }: Props) {
                             // Find the real jar to get rotation data
                             const realJar = realJars.find(j => j.id === String(selected.id));
                             if (!realJar) return null;
-                            // Build member list from mock (will be real members once member mgmt is wired)
-                            const memberList = groupMembers.map(m => ({
-                                uid: m.id.toString(),
-                                name: m.name,
-                                initials: m.initials,
+                            // Build member list from real profiles
+                            const memberList = jarMembers.map(m => ({
+                                uid: m.uid,
+                                name: m.fullName,
+                                initials: m.fullName.split(' ').map(n => n[0]).join(''),
                             }));
                             return (
                                 <AjoRotationPanel

@@ -15,9 +15,16 @@ interface Props {
     onSuccess: (pin: string) => void;
     title?: string;
     subtitle?: string;
+    /** If true, skip internal verification and call onSuccess(pin) directly on submit */
+    onlyCollect?: boolean;
 }
 
-export default function WalletPinModal({ isOpen, onClose, onSuccess, title = 'Enter Wallet PIN', subtitle = 'Enter your 4-digit PIN to authorise this transaction.' }: Props) {
+export default function WalletPinModal({ 
+    isOpen, onClose, onSuccess, 
+    title = 'Enter Wallet PIN', 
+    subtitle = 'Enter your 4-digit PIN to authorise this transaction.',
+    onlyCollect = false
+}: Props) {
     const { currentUser } = useAuth();
     const [pin, setPin] = useState<string[]>(['', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -41,6 +48,16 @@ export default function WalletPinModal({ isOpen, onClose, onSuccess, title = 'En
         setPin(newPin);
         if (value && index < 3) {
             inputRefs.current[index + 1]?.focus();
+        } else if (value && index === 3) {
+            // Auto-submit when the last digit is entered
+            const fullPin = [...newPin].join('');
+            if (fullPin.length === 4) {
+                // We wrap in a small timeout to ensure state is updated or just use the local string
+                setTimeout(() => {
+                    const form = document.getElementById('pin-form') as HTMLFormElement;
+                    form?.requestSubmit();
+                }, 10);
+            }
         }
     };
 
@@ -57,6 +74,15 @@ export default function WalletPinModal({ isOpen, onClose, onSuccess, title = 'En
 
         setLoading(true);
         setError('');
+
+        if (onlyCollect) {
+            // Skip server-side verification in the modal, let the caller handle it.
+            setTimeout(() => {
+                onSuccess(fullPin);
+                setLoading(false);
+            }, 50);
+            return;
+        }
 
         try {
             const res = await fetch('/api/wallet-pin?action=verify', {
@@ -103,7 +129,7 @@ export default function WalletPinModal({ isOpen, onClose, onSuccess, title = 'En
                         <p className="text-xs text-slate-500 text-center mt-1 max-w-[200px]">{subtitle}</p>
                     </div>
 
-                    <form onSubmit={handleSubmit}>
+                    <form id="pin-form" onSubmit={handleSubmit}>
                         <div className="flex justify-center gap-3 mb-5">
                             {pin.map((digit, i) => (
                                 <input

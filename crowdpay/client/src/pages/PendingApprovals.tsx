@@ -346,21 +346,21 @@ export default function PendingApprovals({ onMenuClick }: Props) {
         <div className="min-h-screen bg-slate-50 font-sans">
 
             {/* ── Header ── */}
-            <div className="bg-white border-b border-slate-100 px-6 py-5 shadow-sm sticky top-0 z-20">
-                <div className="flex items-center gap-3 mb-5">
-                    <button onClick={onMenuClick} className="lg:hidden w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                        <Menu size={17} className="text-slate-600" />
+            <div className="bg-white border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-5 shadow-sm sticky top-0 z-20">
+                <div className="flex items-center gap-3 mb-3 sm:mb-5">
+                    <button onClick={onMenuClick} className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                        <Menu size={15} className="text-slate-600 sm:size-[17px]" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                             Notifications
                             {pendingTotal > 0 && (
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-900 text-white text-xs font-black">
+                                <span className="inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-900 text-white text-[10px] sm:text-xs font-black">
                                     {pendingTotal}
                                 </span>
                             )}
                         </h1>
-                        <p className="text-sm text-slate-400 mt-0.5">
+                        <p className="hidden sm:block text-sm text-slate-400 mt-0.5">
                             Vote on withdrawals, manage invitations. 100% consensus required to release funds.
                         </p>
                     </div>
@@ -372,16 +372,16 @@ export default function PendingApprovals({ onMenuClick }: Props) {
                         <button
                             key={s.key}
                             onClick={() => setActiveFilter(prev => prev === s.key ? 'all' : s.key)}
-                            className={`flex items-center gap-3 p-4 rounded-2xl border text-left transition-all ${activeFilter === s.key
+                            className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all ${activeFilter === s.key
                                 ? 'border-blue-300 bg-blue-50 shadow-sm shadow-blue-100'
                                 : 'border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300'
                                 }`}>
-                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.grad} flex items-center justify-center shrink-0`}>
-                                <s.icon size={18} className="text-white" />
+                            <div className={`w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br ${s.grad} flex items-center justify-center shrink-0`}>
+                                <s.icon size={14} className="sm:size-[18px] text-white" />
                             </div>
-                            <div>
-                                <p className="text-lg font-black text-slate-900">{s.value}</p>
-                                <p className="text-[10px] text-slate-400 font-semibold">{s.label}</p>
+                            <div className="min-w-0">
+                                <p className="text-sm sm:text-lg font-black text-slate-900 leading-none mb-1">{s.value}</p>
+                                <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-tight truncate">{s.label}</p>
                             </div>
                         </button>
                     ))}

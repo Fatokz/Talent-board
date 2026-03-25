@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
     Bell, Search, Plus, TrendingUp, Users, Target, Award,
@@ -17,6 +18,7 @@ import FundJarModal from '../components/FundJarModal'
 import WithdrawWalletModal from '../components/WithdrawWalletModal'
 import FundWalletModal from '../components/FundWalletModal'
 import { JarTemplate, VotingModalState } from '../types'
+
 
 const jarMeta: Record<string, { icon: React.ElementType; grad: string; text: string; tag: string }> = {
     Traditional: { icon: RefreshCcw, grad: 'from-blue-900 to-blue-700', text: 'text-blue-800', tag: 'bg-blue-100 text-blue-800' },
@@ -56,8 +58,9 @@ function JarCard({ jar, onWithdraw, onActivate, onContribute }: { jar: JarTempla
                 </div>
 
                 <p className="text-xs text-slate-400 leading-relaxed mb-4 line-clamp-2">{jar.description}</p>
-
-                {jar.contributionAmount && jar.contributionAmount > 0 && (
+                
+                {/* Only show requirement for ACTIVE jars (string IDs) */}
+                {typeof jar.id === 'string' && jar.contributionAmount && jar.contributionAmount > 0 && (
                     <div className="flex items-center gap-2 mb-4 bg-slate-50 border border-slate-100 p-2.5 rounded-xl">
                         <Wallet size={14} className="text-emerald-600" />
                         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tight">Requirement:</span>
@@ -138,22 +141,33 @@ export default function SocialDashboard({ onMenuClick }: Props) {
 
     // Capture Interswitch Funding Redirect
     useEffect(() => {
-        const txnRef = searchParams.get('wallet_funded');
+        const type = searchParams.get('type');
+        const jarId = searchParams.get('jarId');
+        const txnRef = searchParams.get('txnref') || searchParams.get('wallet_funded');
         const amount = searchParams.get('amount');
+        
         if (txnRef && amount && currentUser?.uid) {
             setSearchParams(new URLSearchParams()); // clear url immediately
-            // Silently verify the payment
-            fetch('/api/wallet-funding?action=verify', {
+            
+            const endpoint = type === 'jar' ? '/api/verify-payment' : '/api/wallet-funding?action=verify';
+            
+            const loadId = toast.loading('Finalizing payment verification...');
+            
+            fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ txnRef, amount, uid: currentUser.uid })
+                body: JSON.stringify({ txnRef, amount, uid: currentUser.uid, jarId })
             }).then(res => res.json()).then(data => {
+                toast.dismiss(loadId);
                 if (data.success) {
-                    alert(data.message || 'Wallet funded successfully!');
+                    toast.success(data.message || 'Payment verified successfully!');
                 } else {
-                    alert(data.message || 'Wallet funding verification failed.');
+                    toast.error(data.message || 'Payment verification failed.');
                 }
-            }).catch(console.error)
+            }).catch(e => {
+                console.error(e);
+                toast.error('Network error during verification.');
+            })
         }
     }, [searchParams, currentUser, setSearchParams])
 
@@ -193,7 +207,8 @@ export default function SocialDashboard({ onMenuClick }: Props) {
     }));
 
     const activeJars = mappedJars;
-    const defaultJars = jarTemplates;
+    const activeCategories = Array.from(new Set(activeJars.map(j => j.category)));
+    const defaultJars = jarTemplates.filter(t => !activeCategories.includes(t.category));
 
     const [notifCount, setNotifCount] = useState(0)
 
@@ -310,15 +325,15 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                 {/* Stat cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
                     {stats.map(s => (
-                        <div key={s.label} className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center gap-4 shadow-sm">
-                            <div className={`w-[52px] h-[52px] rounded-2xl bg-gradient-to-br ${s.grad} flex items-center justify-center shadow-lg shrink-0`}>
-                                <s.icon size={24} className="text-white" />
+                        <div key={s.label} className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 flex items-center gap-2 sm:gap-4 shadow-sm">
+                            <div className={`w-8 h-8 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-gradient-to-br ${s.grad} flex items-center justify-center shadow-lg shrink-0`}>
+                                <s.icon size={16} className="sm:size-6 text-white" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-sm text-slate-500 font-semibold mb-0.5 truncate">{s.label}</p>
-                                <div className="flex items-baseline gap-2 flex-wrap">
-                                    <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{s.value}</div>
-                                    {s.subtext && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md whitespace-nowrap">{s.subtext}</span>}
+                                <p className="text-[10px] sm:text-sm text-slate-500 font-semibold mb-0.5 truncate">{s.label}</p>
+                                <div className="flex items-baseline gap-1 sm:gap-2 flex-wrap">
+                                    <div className="text-sm sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{s.value}</div>
+                                    {s.subtext && <span className="text-[8px] sm:text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded-md whitespace-nowrap">{s.subtext}</span>}
                                 </div>
                             </div>
                         </div>

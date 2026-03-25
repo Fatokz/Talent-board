@@ -224,6 +224,40 @@ export const subscribeToJarWithdrawals = (
     });
 };
 
+// 6b. Realtime listener — all transactions for a specific jar
+export const subscribeToJarTransactions = (
+    jarId: string,
+    callback: (txns: any[]) => void
+) => {
+    const ref = collection(db, 'transactions');
+    const q = query(ref, where('jarId', '==', jarId));
+    return onSnapshot(q, snap => {
+        const txns = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Sort by timestamp if not already sorted by firestore (usually not guaranteed without orderBy)
+        txns.sort((a: any, b: any) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+        callback(txns);
+    });
+};
+
+// 6c. Realtime listener — multiple user profiles by IDs
+export const subscribeToJarMembers = (
+    uids: string[],
+    callback: (members: UserProfile[]) => void
+) => {
+    if (!uids.length) {
+        callback([]);
+        return () => {};
+    }
+    const ref = collection(db, 'users');
+    // Firestore 'in' query supports up to 10-30 IDs usually. 
+    // For large groups we might need a different approach, but for Ajo (max 12-20) this is fine.
+    const q = query(ref, where('uid', 'in', uids));
+    return onSnapshot(q, snap => {
+        const members = snap.docs.map(d => d.data() as UserProfile);
+        callback(members);
+    });
+};
+
 // 7. Realtime listener — all pending withdrawal requests for a user's jars
 export const subscribeToUserPendingWithdrawals = (
     userId: string,

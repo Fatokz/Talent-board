@@ -17,7 +17,7 @@ export interface JarTemplate {
 }
 
 export interface GroupMember {
-    id: number
+    id: string | number
     name: string
     initials: string
     role: string
@@ -28,7 +28,7 @@ export interface GroupMember {
 
 export interface Transaction {
     id: string
-    type: 'deposit' | 'withdrawal' | 'jar_contribution'
+    type: 'deposit' | 'withdrawal' | 'jar_contribution' | 'jar_withdrawal'
     member?: string
     uid: string
     jar?: string

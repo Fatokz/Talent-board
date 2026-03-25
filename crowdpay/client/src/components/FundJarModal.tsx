@@ -59,6 +59,31 @@ export default function FundJarModal({ isOpen, onClose, jar, profile }: Props) {
 
         setLoading(true)
         try {
+            const isBypass = import.meta.env.VITE_ENABLE_KYC_BYPASS === 'true'
+            
+            if (isBypass) {
+                toast.success('Bypass Enabled - Verifying Instantly...')
+                const verifyReq = await fetch('/api/verify-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        txnRef: `CP_BYPASS_${Date.now()}`, 
+                        amount: numAmount, 
+                        uid: currentUser?.uid,
+                        jarId: jar.id
+                    })
+                });
+                const verifyRes = await verifyReq.json();
+                if (verifyRes.success) {
+                    toast.success('Success! Jar Funded (Bypass Mode).');
+                    onClose();
+                } else {
+                    toast.error(verifyRes.message || 'Verification Failed');
+                }
+                setLoading(false);
+                return;
+            }
+
             // 1. Get Interswitch Payment Credentials from our Vercel Serverless Function
             const res = await fetch('/api/initiate-payment', {
                 method: 'POST',
@@ -73,6 +98,7 @@ export default function FundJarModal({ isOpen, onClose, jar, profile }: Props) {
             const data = await res.json()
             if (!res.ok) throw new Error(data.message || 'Failed to initiate payment')
             toast.success('Initializing Secure Payment...')
+            // ... (rest of the existing logic for live Interswitch mode)
 
             // 2. Load inline script dynamically
             const isProd = import.meta.env.PROD // Vite checks if production build
@@ -190,6 +216,7 @@ export default function FundJarModal({ isOpen, onClose, jar, profile }: Props) {
                         onSuccess={executeWalletFunding}
                         title="Authorise Payment"
                         subtitle={`Confirm payment of ₦${numAmount.toLocaleString()} to ${jar.name}`}
+                        onlyCollect={true}
                     />
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">

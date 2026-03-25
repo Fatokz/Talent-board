@@ -23,10 +23,10 @@ export default async function handler(req, res) {
     const payItemId   = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX179536';
     const currency = '566'; // 566 is NGN (Naira)
     
-    // Determine the Redirect URL after payment completion (locally or production Vercel URL)
+    // Determine the Redirect URL after payment completion
     const siteRedirectUrl = process.env.SITE_URL 
-      ? `${process.env.SITE_URL}/jar/${jarId}` 
-      : 'http://localhost:5173/dashboard';
+      ? `${process.env.SITE_URL}/dashboard?type=jar&jarId=${jarId}` 
+      : `http://localhost:5173/dashboard?type=jar&jarId=${jarId}`;
     
     const macKey = process.env.INTERSWITCH_MAC_KEY; 
     

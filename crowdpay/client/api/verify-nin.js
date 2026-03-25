@@ -16,7 +16,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { nin, firstName, lastName, uid } = req.body;
+    const { nin, firstName, lastName, uid: _uid } = req.body;
 
     if (!nin || nin.length !== 11) {
         return res.status(400).json({ success: false, message: 'Invalid NIN. Must be 11 digits.' });

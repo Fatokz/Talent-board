@@ -44,6 +44,30 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
 
         setLoading(true)
         try {
+            const isBypass = import.meta.env.VITE_ENABLE_KYC_BYPASS === 'true'
+            
+            if (isBypass) {
+                toast.success('Bypass Enabled - Funding Wallet Instantly...')
+                const verifyReq = await fetch('/api/wallet-funding?action=verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        txnRef: `CP_W_BYPASS_${Date.now()}`, 
+                        amount: numAmount, 
+                        uid: currentUser?.uid 
+                    })
+                });
+                const verifyRes = await verifyReq.json();
+                if (verifyRes.success) {
+                    toast.success('Success! Wallet Funded (Bypass Mode).');
+                    onClose();
+                } else {
+                    toast.error(verifyRes.message || 'Verification Failed');
+                }
+                setLoading(false);
+                return;
+            }
+
             const res = await fetch('/api/wallet-funding?action=initiate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -57,6 +81,8 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
             const data = await res.json()
             if (!res.ok) throw new Error(data.message || 'Failed to initiate payment')
             toast.success('Initializing Secure Payment...')
+            
+            // ... (rest of the existing logic for live Interswitch mode)
             
             // 2. Load inline-checkout script dynamically
             const isProd = import.meta.env.PROD

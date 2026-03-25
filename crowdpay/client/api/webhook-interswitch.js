@@ -49,13 +49,13 @@ export default async function handler(req, res) {
       }
     }
 
-    const { responseCode, transactionReference, amount, paymentReference } = payload;
+    const { responseCode, transactionReference, amount, paymentReference: _paymentReference } = payload;
     
     console.log('Interswitch Webhook received:', { responseCode, transactionReference, amount });
 
     // responseCode '00' means successful payment
     if (responseCode === '00' && transactionReference) {
-      const db = admin.firestore();
+      const _db = admin.firestore();
       
       // Try to find which type of transaction this is
       // Check if it's a wallet funding transaction (txnRef starts with CP_W_)

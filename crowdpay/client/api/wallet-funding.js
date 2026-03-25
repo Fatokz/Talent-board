@@ -43,7 +43,7 @@ export default async function handler(req, res) {
         .digest('hex');
 
       return res.status(200).json({ txnRef, productId, payItemId, amount: amountInKobo, currency, siteRedirectUrl, hash, email, uid });
-    } catch (err) {
+    } catch (_err) {
       return res.status(500).json({ message: 'Error initiating funding' });
     }
   }
@@ -73,24 +73,31 @@ export default async function handler(req, res) {
           headers: { Hash: hash }
         });
         const data = await response.json();
-        if (data && (data.ResponseCode === '00' || data.ResponseCode === '000')) isSuccess = true;
+        if (data && (data.ResponseCode === '00' || data.ResponseCode === '000')) {
+          isSuccess = true;
+          // Use Interswitch Amount (Kobo) converted to Naira as source of truth
+          req.verifiedAmount = Number(data.Amount) / 100;
+        }
       }
 
       if (isSuccess) {
         const db = admin.firestore();
         const userRef = db.collection('users').doc(uid);
+        const actualNairaAmount = req.verifiedAmount || Number(amount);
+        
         const newBalance = await db.runTransaction(async (t) => {
           const doc = await t.get(userRef);
           if (!doc.exists) throw new Error('User not found');
           const handled = doc.data().handledTxns || [];
           if (handled.includes(txnRef)) throw new Error('already verified');
-          const newBal = (doc.data().walletBalance || 0) + Number(amount);
+          
+          const newBal = (doc.data().walletBalance || 0) + actualNairaAmount;
           
           // Log Transaction
           const txnRef_final = txnRef || `CP_W_${Date.now()}`;
           t.set(db.collection('transactions').doc(txnRef_final), {
             uid,
-            amount: Number(amount),
+            amount: actualNairaAmount,
             type: 'deposit',
             status: 'completed',
             reference: txnRef_final,

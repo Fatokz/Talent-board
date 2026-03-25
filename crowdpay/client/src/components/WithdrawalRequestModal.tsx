@@ -110,6 +110,7 @@ export default function WithdrawalRequestModal({
                 onSuccess={(p) => { setPinModalOpen(false); executeRequest(p); }}
                 title="Authorise Request"
                 subtitle={`Enter your 4-digit PIN to request this ${fmtMoney(amount)} payout.`}
+                onlyCollect={true}
             />
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={handleClose} />
             <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">

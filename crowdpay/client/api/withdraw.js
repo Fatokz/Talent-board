@@ -84,7 +84,7 @@ export default async function handler(req, res) {
             t.update(jarRef, { raised: admin.firestore.FieldValue.increment(Number(amount)) });
 
             t.set(db.collection('transactions').doc(txnRef), {
-                uid, amount: Number(amount), type: 'deposit', status: 'completed',
+                uid, amount: Number(amount), type: 'jar_withdrawal', status: 'completed',
                 reference: txnRef, description: `Contribution to ${jarName || jarDoc.data().name} from Wallet`,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
             });

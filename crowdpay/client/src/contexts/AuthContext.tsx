@@ -6,7 +6,7 @@ import {
     GoogleAuthProvider,
     signOut as firebaseSignOut
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile, subscribeToUserDoc, updateCurrentRole as dbUpdateRole } from '../lib/db';
 
@@ -26,16 +26,13 @@ export function useAuth() {
 }
 
 /** Ensures a Firestore user document exists for any auth method. */
-async function ensureUserProfile(user: User) {
-    if (!db) {
-        console.error("Firebase 'db' is undefined. Check firebaseConfig and imports.", user.uid);
-        return;
-    }
+async function ensureUserProfile(user: User): Promise<UserProfile | null> {
+    if (!db) return null;
     const userRef = doc(db, 'users', user.uid);
     const snap = await getDoc(userRef);
     
     if (!snap.exists()) {
-        await setDoc(userRef, {
+        const newData: any = {
             uid: user.uid,
             fullName: user.displayName || '',
             email: user.email || '',
@@ -46,11 +43,11 @@ async function ensureUserProfile(user: User) {
             currentRole: 'user',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-        });
-    } else {
-        // User already exists — do nothing.
-        // subscribeToUserDoc below will keep the profile in sync via realtime listener.
+        };
+        await setDoc(userRef, newData);
+        return newData;
     }
+    return snap.data() as UserProfile;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -82,8 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signInWithGoogle = async () => {
         const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
-        // ensureUserProfile is called in onAuthStateChanged above
+        const result = await signInWithPopup(auth, provider);
+        if (result.user) {
+            const profile = await ensureUserProfile(result.user);
+            if (profile) setUserProfile(profile);
+        }
     };
 
     const signOut = async () => {
