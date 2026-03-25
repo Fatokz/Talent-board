@@ -54,6 +54,7 @@ export default function CreateJarModal({
     const [frequency, setFrequency] = useState('Monthly');
     const [contributionAmount, setContributionAmount] = useState('');
     const [vendorId, setVendorId] = useState(initialVendorId ?? '');
+    const [jarType, setJarType] = useState<'solo' | 'collaborative'>('collaborative');
     const [rotationMethod, setRotationMethod] = useState<'creator' | 'random' | 'join-order'>('creator');
     const [targetDays, setTargetDays] = useState('30');
     const [loading, setLoading] = useState(false);
@@ -76,6 +77,7 @@ export default function CreateJarModal({
         setName(''); setCategory('Traditional'); setGoal('');
         setFrequency('Monthly'); setContributionAmount('');
         setVendorId('');
+        setJarType('collaborative');
         setRotationMethod('creator');
         onClose();
     };
@@ -95,9 +97,10 @@ export default function CreateJarModal({
                 category,
                 goal: numGoal,
                 frequency,
+                jarType,
                 contributionAmount: numContribution,
                 ...(vendorId ? { vendorId } : {}),
-                ...(isTraditional && { rotationMethod, currentRound: 0, disbursedRounds: 0 }),
+                ...(isTraditional && jarType === 'collaborative' && { rotationMethod, currentRound: 0, disbursedRounds: 0 }),
                 createdBy: currentUser.uid,
                 targetDays: parseInt(targetDays, 10) || 30,
             }, currentUser.uid);
@@ -170,6 +173,34 @@ export default function CreateJarModal({
                             </div>
                         </div>
 
+                        {/* Jar Mode Toggle */}
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2.5">Saving Mode</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button type="button" onClick={() => setJarType('solo')}
+                                    className={`flex flex-col items-center gap-2 p-3.5 rounded-2xl border-2 transition-all ${jarType === 'solo' ? 'border-blue-900 bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                    <Crown size={18} className={jarType === 'solo' ? 'text-blue-900' : 'text-slate-300'} />
+                                    <div className="text-center">
+                                        <p className="text-xs font-black">Solo Jar</p>
+                                        <p className="text-[10px] opacity-70">Personal savings</p>
+                                    </div>
+                                </button>
+                                <button type="button" onClick={() => setJarType('collaborative')}
+                                    className={`flex flex-col items-center gap-2 p-3.5 rounded-2xl border-2 transition-all ${jarType === 'collaborative' ? 'border-emerald-600 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                    <Shuffle size={18} className={jarType === 'collaborative' ? 'text-emerald-600' : 'text-slate-300'} />
+                                    <div className="text-center">
+                                        <p className="text-xs font-black">Group Jar</p>
+                                        <p className="text-[10px] opacity-70">Invite others</p>
+                                    </div>
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-2 ml-1">
+                                {jarType === 'solo' 
+                                    ? "Solo jars are for personal goals and don't require voting for withdrawals." 
+                                    : "Group jars require unanimous consensus from all members for withdrawals."}
+                            </p>
+                        </div>
+
                         {/* Vendor Linkage (Marketplace) */}
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1.5">
@@ -191,7 +222,7 @@ export default function CreateJarModal({
                         </div>
 
                         {/* Ajo Payout Order Method */}
-                        {isTraditional && (
+                        {isTraditional && jarType === 'collaborative' && (
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">
                                     Payout Rotation Order

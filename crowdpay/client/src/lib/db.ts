@@ -16,10 +16,11 @@ export interface Jar {
     frequency: string;
     vendorId?: string; // ID of a verified vendor if this jar pays out directly to a merchant
     contributionAmount?: number; // Fixed per-cycle amount (Ajo) or minimum contribution (others)
-    status: 'active' | 'completed';
+    status: 'active' | 'completed' | 'PAYOUT_COMPLETED';
     createdBy: string;
     createdAt: number;
     targetDays?: number; // How many days the jar is active for
+    jarType: 'solo' | 'collaborative';
 
     // --- Ajo (Rotating Savings) specific fields ---
     rotationMethod?: 'creator' | 'random' | 'join-order'; // How payout order is determined

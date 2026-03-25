@@ -19,6 +19,7 @@ export interface WithdrawalRequestModalProps {
     jarCategory: string;
     amount: number;
     totalVoters: number;
+    jarType: 'solo' | 'collaborative';
     type: 'ajo_rotation' | 'goal_withdrawal';
     round?: number;
 }
@@ -28,7 +29,7 @@ function fmtMoney(n: number) { return `₦${n.toLocaleString()}`; }
 export default function WithdrawalRequestModal({
     isOpen, onClose,
     jarId, jarName, jarCategory,
-    amount, totalVoters,
+    amount, totalVoters, jarType,
     type, round,
 }: WithdrawalRequestModalProps) {
     const { currentUser } = useAuth();
@@ -81,7 +82,8 @@ export default function WithdrawalRequestModal({
                     reason,
                     destinationType,
                     vendorId,
-                    totalVoters,
+                    totalVoters: jarType === 'solo' ? 0 : totalVoters,
+                    jarType,
                     type,
                     round
                 })
@@ -151,7 +153,7 @@ export default function WithdrawalRequestModal({
                         </div>
                         <h3 className="text-xl font-black text-slate-900 mb-2">Request Submitted!</h3>
                         <p className="text-sm text-slate-500 leading-relaxed max-w-xs mb-8">
-                            {totalVoters === 0 
+                            {jarType === 'solo' 
                                 ? "Auto-approved since this is a solo jar. Funds will be released to your destination." 
                                 : `All ${totalVoters} group members have been notified and must approve before funds are released.`}
                         </p>
@@ -170,7 +172,7 @@ export default function WithdrawalRequestModal({
                         <div className="flex items-start gap-2.5 bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3">
                             <Info size={14} className="text-blue-600 shrink-0 mt-0.5" />
                             <p className="text-xs font-medium text-blue-800 leading-relaxed">
-                                {totalVoters === 0
+                                {jarType === 'solo'
                                     ? 'Submit your destination details below. Since this is a solo jar, it will be auto-approved.'
                                     : `It's time! Submit your payout destination. All ${totalVoters} group members must approve before funds are released.`}
                             </p>

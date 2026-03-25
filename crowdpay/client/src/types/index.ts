@@ -15,6 +15,7 @@ export interface JarTemplate {
     goalReached: boolean
     goalReachedFor?: string
     creatorId?: string
+    jarType: 'solo' | 'collaborative'
     contributionAmount?: number
 }
 

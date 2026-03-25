@@ -203,6 +203,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
         description: `A ${jar.frequency} ${jar.category} contribution group.`,
         color: 'from-blue-600 to-blue-500',
         goalReached: jar.raised >= jar.goal && jar.goal > 0 && jar.status !== 'PAYOUT_COMPLETED',
+        jarType: jar.jarType,
         contributionAmount: jar.contributionAmount
     }));
 
@@ -351,7 +352,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                             <p className="text-white font-black text-base mt-1">{goalReached.goalReachedFor}</p>
                             <p className="text-white/50 text-xs mt-0.5">{fmtMoney(goalReached.raised)} collected · {goalReached.members} contributors · Awaiting unanimous sign-off</p>
                         </div>
-                        <button onClick={() => setModal({ isOpen: true, jar: goalReached })}
+                        <button onClick={() => setWithdrawalJar(goalReached)}
                             className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-blue-900 text-sm font-black shadow-lg hover:-translate-y-0.5 transition-transform whitespace-nowrap">
                             Request Withdrawal <ChevronRight size={14} />
                         </button>
@@ -431,6 +432,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                     jarCategory={withdrawalJar.category}
                     amount={withdrawalJar.raised}
                     totalVoters={Math.max(withdrawalJar.members - 1, 0)}
+                    jarType={withdrawalJar.jarType}
                     type={withdrawalJar.category === 'Traditional' ? 'ajo_rotation' : 'goal_withdrawal'}
                 />
             )}
