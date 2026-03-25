@@ -13,7 +13,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { accountNumber, bankCode, fullName } = req.body;
+    const { accountNumber, bankCode } = req.body;
 
     if (!accountNumber || accountNumber.length !== 10 || !bankCode) {
         return res.status(400).json({ success: false, message: 'Invalid Account Number or missing Bank Code.' });

@@ -1,3 +1,5 @@
+import { WithdrawalRequest } from '../lib/db'
+
 export interface JarTemplate {
     id: number | string
     name: string
@@ -61,4 +63,5 @@ export interface VotingModalState {
     isOpen: boolean
     jar?: JarTemplate
     approval?: PendingApproval
+    request?: WithdrawalRequest
 }

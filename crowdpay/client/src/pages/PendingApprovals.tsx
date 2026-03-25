@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react'
 import {
-    Clock, CheckCircle, XCircle, AlertCircle, ChevronDown,
+    Clock, CheckCircle, XCircle, AlertCircle,
     Users, FileText, TrendingUp, Bell, Mail, Menu, UserCheck, UserX,
 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import Logo from '../assets/crowdpayplain.png'
-import { pendingApprovals } from '../data/mockData'
-import { PendingApproval, VotingModalState } from '../types'
+import { VotingModalState } from '../types'
 import VotingModal from '../components/VotingModal'
 import KycBlockerModal from '../components/KycBlockerModal'
 import {
     subscribeToUserInvites, subscribeToSentInvites,
     subscribeToUserDoc, UserProfile,
     acceptInvite, declineInvite, Invite,
+    subscribeToUserPendingWithdrawals, WithdrawalRequest
 } from '../lib/db'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -22,8 +22,9 @@ function fmtDate(ts: number | string) {
     const d = typeof ts === 'number' ? new Date(ts) : new Date(ts)
     return d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
-function fmtDeadline(iso: string) {
-    const h = Math.floor((new Date(iso).getTime() - Date.now()) / 3600000)
+function fmtDeadline(ts: number | string) {
+    const time = typeof ts === 'number' ? ts : new Date(ts).getTime()
+    const h = Math.floor((time - Date.now()) / 3600000)
     return h < 24 ? `${h}h left` : `${Math.floor(h / 24)}d left`
 }
 function fmtMoney(n: number) { return `₦${n.toLocaleString()}` }
@@ -35,32 +36,29 @@ function timeAgo(ts: number) {
     return `${Math.floor(diff / 86400000)}d ago`
 }
 
-const jarTagColors: Record<string, string> = {
-    'Birthday / Gift Fund': 'bg-emerald-100 text-emerald-800',
-    'Burial Support': 'bg-indigo-100 text-indigo-800',
-    'School Fees': 'bg-amber-100 text-amber-800',
-}
 
 // ─── approval card (unchanged) ────────────────────────────────────────────────
-function ApprovalCard({ a, onVote }: { a: PendingApproval; onVote: () => void }) {
-    const [expanded, setExpanded] = useState(false)
-    const pct = Math.round((a.votesFor / a.totalVoters) * 100)
+function ApprovalCard({ a, onVote }: { a: WithdrawalRequest; onVote: () => void }) {
+    const votesForCount = Object.values(a.votes || {}).filter(v => v.decision === 'approved').length
+    const votesAgainstCount = Object.values(a.votes || {}).filter(v => v.decision === 'declined').length
+    const pct = Math.round((votesForCount / a.totalVoters) * 100)
     const urgent = new Date(a.votingDeadline).getTime() - Date.now() < 86400000 * 2
-    const tagColor = jarTagColors[a.jar] || 'bg-blue-100 text-blue-800'
+    const tagColor = 'bg-blue-100 text-blue-800' // could be dynamic based on category
+
     return (
         <div className={`bg-white rounded-3xl border shadow-sm overflow-hidden ${urgent ? 'border-amber-300 shadow-amber-100' : 'border-slate-200'}`}>
             {urgent && <div className="h-1 bg-gradient-to-r from-amber-400 to-amber-300" />}
             <div className="p-6">
                 <div className="flex items-start gap-4 mb-5">
                     <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-blue-900/25 shrink-0">
-                        {a.initials}
+                        {a.requestedByInitials}
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2.5 flex-wrap mb-1">
-                            <p className="font-black text-slate-900 text-[15px]">{a.requestedBy}</p>
-                            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${tagColor}`}>{a.jar}</span>
+                            <p className="font-black text-slate-900 text-[15px]">{a.requestedByName}</p>
+                            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${tagColor}`}>{a.jarName}</span>
                         </div>
-                        <p className="text-xs text-slate-400">Requested · {fmtDate(a.requestedAt)}</p>
+                        <p className="text-xs text-slate-400">Requested · {fmtDate(a.createdAt)}</p>
                     </div>
                     <div className="text-right shrink-0">
                         <p className="text-2xl font-black text-slate-900 tracking-tight">{fmtMoney(a.amount)}</p>
@@ -87,48 +85,29 @@ function ApprovalCard({ a, onVote }: { a: PendingApproval; onVote: () => void })
                             </div>
                             <span className="text-sm font-bold text-slate-700">Consensus Progress</span>
                         </div>
-                        <span className="text-sm font-black text-slate-900">{a.votesFor} / {a.totalVoters}</span>
+                        <span className="text-sm font-black text-slate-900">{votesForCount} / {a.totalVoters}</span>
                     </div>
                     <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden mb-2">
                         <div className="h-full bg-gradient-to-r from-blue-900 to-blue-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
-                    <div className="flex gap-4 text-xs">
-                        <span className="text-emerald-600 font-bold flex items-center gap-1">
-                            <CheckCircle size={12} /> {a.votesFor} approved
+                    <div className="flex gap-4 text-xs font-bold">
+                        <span className="text-emerald-600 flex items-center gap-1">
+                            <CheckCircle size={12} /> {votesForCount} approved
                         </span>
-                        {a.votesAgainst > 0 && (
-                            <span className="text-red-600 font-bold flex items-center gap-1">
-                                <XCircle size={12} /> {a.votesAgainst} declined
+                        {votesAgainstCount > 0 && (
+                            <span className="text-red-600 flex items-center gap-1">
+                                <XCircle size={12} /> {votesAgainstCount} declined
                             </span>
                         )}
-                        <span className="text-slate-400 flex items-center gap-1">
-                            <Clock size={12} /> {a.totalVoters - a.votesFor - a.votesAgainst} pending
+                        <span className="text-slate-400 flex items-center gap-1 ml-auto">
+                            <Clock size={12} /> {fmtDeadline(a.votingDeadline)}
                         </span>
                     </div>
                 </div>
-                <button onClick={() => setExpanded(s => !s)}
-                    className="w-full flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-600 font-semibold mb-5 hover:bg-slate-100 transition-colors">
-                    <span className="flex items-center gap-2"><FileText size={13} className="text-slate-400" /> {a.invoiceLabel}</span>
-                    <ChevronDown size={14} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                <button onClick={onVote} 
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-900 to-blue-700 text-white font-black text-sm shadow-lg shadow-blue-900/25 hover:-translate-y-0.5 transition-transform active:scale-95">
+                    Review & Vote
                 </button>
-                {expanded && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-5 text-sm">
-                        <p className="font-bold text-blue-900 mb-1">Invoice Details</p>
-                        <p className="text-blue-700">{a.invoiceLabel}</p>
-                        <p className="text-blue-500 text-xs mt-1">Amount: {fmtMoney(a.amount)} · Requested by {a.requestedBy}</p>
-                    </div>
-                )}
-                <div className="flex gap-3">
-                    <button onClick={onVote} className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white text-sm font-bold shadow-md shadow-emerald-500/25 hover:shadow-lg transition-all">
-                        <CheckCircle size={16} /> Approve
-                    </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-red-200 bg-white text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
-                        <XCircle size={16} /> Decline
-                    </button>
-                </div>
-                <p className="text-[11px] text-slate-400 text-center mt-3.5 flex items-center justify-center gap-1.5">
-                    <Clock size={11} /> Voting deadline: {fmtDate(a.votingDeadline)}
-                </p>
             </div>
         </div>
     )
@@ -302,11 +281,13 @@ export default function PendingApprovals({ onMenuClick }: Props) {
     const [activeFilter, setActiveFilter] = useState<FilterType>('all')
     const [receivedInvites, setReceivedInvites] = useState<Invite[]>([])
     const [sentInvites, setSentInvites] = useState<Invite[]>([])
+    const [realVotes, setRealVotes] = useState<WithdrawalRequest[]>([])
 
-    const total = pendingApprovals.reduce((s, a) => s + a.amount, 0)
-    const urgent = pendingApprovals.filter(a => new Date(a.votingDeadline).getTime() - Date.now() < 86400000 * 2)
+    const approvals = realVotes;
+    const total = approvals.reduce((s, a) => s + a.amount, 0)
+    const urgent = approvals.filter(a => new Date(a.votingDeadline).getTime() - Date.now() < 86400000 * 2)
     const pendingReceived = receivedInvites.filter(i => i.status === 'pending')
-    const pendingTotal = pendingApprovals.length + pendingReceived.length
+    const pendingTotal = approvals.length + pendingReceived.length
 
     // Subscribe to invites and KYC doc
     useEffect(() => {
@@ -320,11 +301,17 @@ export default function PendingApprovals({ onMenuClick }: Props) {
             currentUser.uid,
             setSentInvites
         )
-        return () => { unsubUser(); unsubReceived(); unsubSent() }
+        const unsubVotes = subscribeToUserPendingWithdrawals(
+            currentUser.uid,
+            setRealVotes
+        )
+        return () => { 
+            unsubUser(); unsubReceived(); unsubSent(); unsubVotes();
+        }
     }, [currentUser])
 
     const filterCards: { key: FilterType; icon: any; label: string; value: string | number; grad: string }[] = [
-        { key: 'votes', icon: AlertCircle, label: 'Awaiting Vote', value: pendingApprovals.length, grad: 'from-amber-600 to-amber-400' },
+        { key: 'votes', icon: AlertCircle, label: 'Awaiting Vote', value: approvals.length, grad: 'from-amber-600 to-amber-400' },
         { key: 'urgent', icon: TrendingUp, label: 'Total at Stake', value: `₦${(total / 1000).toFixed(0)}k`, grad: 'from-blue-900 to-blue-700' },
         { key: 'invites-received', icon: Bell, label: 'Invites Received', value: pendingReceived.length, grad: 'from-indigo-700 to-indigo-500' },
         { key: 'invites-sent', icon: Users, label: 'Invites Sent', value: sentInvites.length, grad: 'from-emerald-700 to-emerald-500' },
@@ -335,8 +322,8 @@ export default function PendingApprovals({ onMenuClick }: Props) {
     const showSent = activeFilter === 'all' || activeFilter === 'invites-sent'
 
     const votesToShow = activeFilter === 'urgent'
-        ? pendingApprovals.filter(a => new Date(a.votingDeadline).getTime() - Date.now() < 86400000 * 2)
-        : pendingApprovals
+        ? approvals.filter(a => new Date(a.votingDeadline).getTime() - Date.now() < 86400000 * 2)
+        : approvals
 
     const nothing = (votesToShow.length === 0 || !showVotes)
         && (receivedInvites.length === 0 || !showReceived)
@@ -416,7 +403,7 @@ export default function PendingApprovals({ onMenuClick }: Props) {
                         ) : (
                             <div className="flex flex-col gap-5">
                                 {votesToShow.map(a => (
-                                    <ApprovalCard key={a.id} a={a} onVote={() => setModal({ isOpen: true, approval: a })} />
+                                    <ApprovalCard key={a.id} a={a} onVote={() => setModal({ isOpen: true, request: a })} />
                                 ))}
                             </div>
                         )}
@@ -485,7 +472,14 @@ export default function PendingApprovals({ onMenuClick }: Props) {
                 )}
             </div>
 
-            {modal.isOpen && <VotingModal isOpen={modal.isOpen} approval={modal.approval} onClose={() => setModal({ isOpen: false })} />}
+            {modal.isOpen && (
+                <VotingModal 
+                    isOpen={modal.isOpen} 
+                    approval={modal.approval} 
+                    request={modal.request}
+                    onClose={() => setModal({ isOpen: false })} 
+                />
+            )}
             <KycBlockerModal isOpen={kycModalOpen} onClose={() => setKycModalOpen(false)} />
         </div>
     )

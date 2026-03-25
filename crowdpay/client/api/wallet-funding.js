@@ -43,7 +43,7 @@ export default async function handler(req, res) {
         .digest('hex');
 
       return res.status(200).json({ txnRef, productId, payItemId, amount: amountInKobo, currency, siteRedirectUrl, hash, email, uid });
-    } catch (_err) {
+    } catch {
       return res.status(500).json({ message: 'Error initiating funding' });
     }
   }
