@@ -19,6 +19,7 @@ export interface Jar {
     status: 'active' | 'completed';
     createdBy: string;
     createdAt: number;
+    targetDays?: number; // How many days the jar is active for
 
     // --- Ajo (Rotating Savings) specific fields ---
     rotationMethod?: 'creator' | 'random' | 'join-order'; // How payout order is determined

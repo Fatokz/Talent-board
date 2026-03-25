@@ -9,8 +9,9 @@ import { JarTemplate, GroupMember } from '../types'
 import InviteMemberModal from '../components/InviteMemberModal'
 import AjoRotationPanel from '../components/AjoRotationPanel'
 import FundJarModal from '../components/FundJarModal'
+import WithdrawalRequestModal from '../components/WithdrawalRequestModal'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeToUserJars, Jar, subscribeToJarMembers, subscribeToJarTransactions, UserProfile } from '../lib/db'
+import { subscribeToUserJars, Jar, subscribeToJarMembers, subscribeToJarTransactions, UserProfile, subscribeToUserDoc } from '../lib/db'
 
 function fmtMoney(n: number) { return `₦${n.toLocaleString()}` }
 
@@ -85,9 +86,13 @@ export default function GroupManagement({ onMenuClick }: Props) {
     const [search, setSearch] = useState('')
     const [inviteModal, setInviteModal] = useState(false)
     const [fundModal, setFundModal] = useState(false)
+    const [withdrawModal, setWithdrawModal] = useState(false)
     const [realJars, setRealJars] = useState<Jar[]>([])
     const [jarMembers, setJarMembers] = useState<UserProfile[]>([])
     const [jarTransactions, setJarTransactions] = useState<any[]>([])
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+    const [page, setPage] = useState(1)
+    const itemsPerPage = 5
 
     useEffect(() => {
         if (!currentUser) return;
@@ -97,10 +102,20 @@ export default function GroupManagement({ onMenuClick }: Props) {
                 setSelectedId(jars[0].id);
             }
         });
-        return () => unsubscribe();
+
+        const unsubProfile = subscribeToUserDoc(currentUser.uid, (p) => setUserProfile(p));
+        
+        return () => {
+            unsubscribe();
+            unsubProfile();
+        };
     }, [currentUser]);
 
     const selectedJar = realJars.find(j => j.id === String(selectedId)) || realJars[0];
+
+    useEffect(() => {
+        setPage(1); // Reset pagination on jar change
+    }, [selectedId]);
 
     useEffect(() => {
         if (!selectedJar) return;
@@ -120,7 +135,7 @@ export default function GroupManagement({ onMenuClick }: Props) {
         goal: jar.goal,
         raised: jar.raised,
         members: jar.members.length,
-        daysLeft: 30, // Mock for now
+        daysLeft: Math.max(0, (jar.targetDays || 30) - Math.floor((Date.now() - jar.createdAt) / (1000 * 60 * 60 * 24))), 
         governanceModel: 'Unanimous Consensus',
         description: `A ${jar.frequency} ${jar.category} group.`,
         color: 'from-blue-600 to-blue-500',
@@ -213,6 +228,14 @@ export default function GroupManagement({ onMenuClick }: Props) {
                                 <p className="text-sm text-slate-400 leading-relaxed">{selected.description}</p>
                             </div>
                             <div className="flex gap-2">
+                                {selected.goalReached && currentUser?.uid === selected.creatorId && (
+                                    <button
+                                        onClick={() => setWithdrawModal(true)}
+                                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-900 to-blue-700 text-white text-xs font-bold shadow-md shadow-blue-900/20"
+                                    >
+                                        <Plus size={13} /> Request Payout
+                                    </button>
+                                )}
                                 {currentUser?.uid === selected.creatorId && (
                                     <button
                                         onClick={() => setInviteModal(true)}
@@ -314,26 +337,53 @@ export default function GroupManagement({ onMenuClick }: Props) {
                                 {jarTransactions.length === 0 ? (
                                     <div className="p-8 text-center text-slate-400 text-xs font-bold italic">No transactions yet. Be the first to fund this jar!</div>
                                 ) : (
-                                    jarTransactions.map(t => {
-                                        const payer = jarMembers.find(m => m.uid === t.uid);
-                                        return (
-                                            <div key={t.id} className="grid grid-cols-4 gap-3 px-5 py-3.5 border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
-                                                        {payer ? payer.fullName.split(' ').map(n => n[0]).join('') : '?'}
+                                    <>
+                                        {jarTransactions.slice((page - 1) * itemsPerPage, page * itemsPerPage).map(t => {
+                                            const payer = jarMembers.find(m => m.uid === t.uid);
+                                            return (
+                                                <div key={t.id} className="grid grid-cols-4 gap-3 px-5 py-3.5 border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                                                            {payer ? payer.fullName.split(' ').map(n => n[0]).join('') : '?'}
+                                                        </div>
+                                                        <span className="text-xs font-bold text-slate-900 truncate">{payer ? payer.fullName : 'Unknown User'}</span>
                                                     </div>
-                                                    <span className="text-xs font-bold text-slate-900 truncate">{payer ? payer.fullName : 'Unknown User'}</span>
+                                                    <span className="text-[10px] font-bold text-slate-500 self-center capitalize">{t.type.replace('_', ' ')}</span>
+                                                    <span className={`text-[11px] font-black self-center ${t.type === 'jar_contribution' ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                                        {t.type === 'jar_contribution' ? '+' : '-'}{fmtMoney(t.amount)}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 self-center">
+                                                        {t.timestamp?.seconds ? new Date(t.timestamp.seconds * 1000).toLocaleDateString() : 'Pending'}
+                                                    </span>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-slate-500 self-center capitalize">{t.type.replace('_', ' ')}</span>
-                                                <span className={`text-[11px] font-black self-center ${t.type === 'jar_contribution' ? 'text-emerald-600' : 'text-blue-600'}`}>
-                                                    {t.type === 'jar_contribution' ? '+' : '-'}{fmtMoney(t.amount)}
-                                                </span>
-                                                <span className="text-[10px] text-slate-400 self-center">
-                                                    {t.timestamp?.seconds ? new Date(t.timestamp.seconds * 1000).toLocaleDateString() : 'Pending'}
-                                                </span>
+                                            );
+                                        })}
+                                        
+                                        {/* Pagination Controls */}
+                                        {jarTransactions.length > itemsPerPage && (
+                                            <div className="px-5 py-3 bg-slate-50/50 flex items-center justify-between">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                    Page {page} of {Math.ceil(jarTransactions.length / itemsPerPage)}
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        disabled={page === 1}
+                                                        onClick={() => setPage(p => p - 1)}
+                                                        className="px-3 py-1 rounded-lg border border-slate-200 bg-white text-[10px] font-black disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                                                    >
+                                                        PREV
+                                                    </button>
+                                                    <button 
+                                                        disabled={page >= Math.ceil(jarTransactions.length / itemsPerPage)}
+                                                        onClick={() => setPage(p => p + 1)}
+                                                        className="px-3 py-1 rounded-lg border border-slate-200 bg-white text-[10px] font-black disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                                                    >
+                                                        NEXT
+                                                    </button>
+                                                </div>
                                             </div>
-                                        );
-                                    })
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -366,7 +416,7 @@ export default function GroupManagement({ onMenuClick }: Props) {
                                     members={memberList}
                                     isCreator={currentUser?.uid === realJar.createdBy}
                                     currentUserId={currentUser?.uid ?? ''}
-                                    onRequestPayout={() => { /* TODO: open WithdrawalRequestModal */ }}
+                                    onRequestPayout={() => setWithdrawModal(true)}
                                 />
                             );
                         })()}
@@ -389,6 +439,21 @@ export default function GroupManagement({ onMenuClick }: Props) {
                     isOpen={fundModal}
                     onClose={() => setFundModal(false)}
                     jar={selected}
+                    profile={userProfile}
+                />
+            )}
+
+            {/* Withdrawal Request Modal */}
+            {selected && (
+                <WithdrawalRequestModal
+                    isOpen={withdrawModal}
+                    onClose={() => setWithdrawModal(false)}
+                    jarId={selected.id as string}
+                    jarName={selected.name}
+                    jarCategory={selected.category}
+                    amount={selected.raised}
+                    totalVoters={Math.max(selected.members - 1, 0)}
+                    type={selected.category === 'Traditional' ? 'ajo_rotation' : 'goal_withdrawal'}
                 />
             )}
         </div>

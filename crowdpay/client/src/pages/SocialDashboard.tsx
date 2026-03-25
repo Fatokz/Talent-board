@@ -198,7 +198,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
         goal: jar.goal,
         raised: jar.raised,
         members: jar.members.length,
-        daysLeft: 30, // Mock for now
+        daysLeft: Math.max(0, (jar.targetDays || 30) - Math.floor((Date.now() - jar.createdAt) / (1000 * 60 * 60 * 24))), 
         governanceModel: 'Unanimous Consensus',
         description: `A ${jar.frequency} ${jar.category} contribution group.`,
         color: 'from-blue-600 to-blue-500',

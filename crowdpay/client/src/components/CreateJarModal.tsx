@@ -55,6 +55,7 @@ export default function CreateJarModal({
     const [contributionAmount, setContributionAmount] = useState('');
     const [vendorId, setVendorId] = useState(initialVendorId ?? '');
     const [rotationMethod, setRotationMethod] = useState<'creator' | 'random' | 'join-order'>('creator');
+    const [targetDays, setTargetDays] = useState('30');
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -98,6 +99,7 @@ export default function CreateJarModal({
                 ...(vendorId ? { vendorId } : {}),
                 ...(isTraditional && { rotationMethod, currentRound: 0, disbursedRounds: 0 }),
                 createdBy: currentUser.uid,
+                targetDays: parseInt(targetDays, 10) || 30,
             }, currentUser.uid);
 
             setLoading(false);
@@ -242,16 +244,29 @@ export default function CreateJarModal({
                         </div>
 
                         {/* Target Goal */}
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1.5">Target Goal (₦)</label>
-                            <input
-                                required
-                                type="number"
-                                value={goal}
-                                onChange={e => setGoal(e.target.value)}
-                                placeholder="e.g. 500000"
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1.5">Target Goal (₦)</label>
+                                <input
+                                    required
+                                    type="number"
+                                    value={goal}
+                                    onChange={e => setGoal(e.target.value)}
+                                    placeholder="e.g. 500000"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1.5">Duration (Days)</label>
+                                <input
+                                    required
+                                    type="number"
+                                    min="1"
+                                    value={targetDays}
+                                    onChange={e => setTargetDays(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition-all font-medium text-slate-900"
+                                />
+                            </div>
                         </div>
                     </div>
 

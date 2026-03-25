@@ -22,7 +22,7 @@ export interface GroupMember {
     initials: string
     role: string
     status: 'approved' | 'pending' | 'declined'
-    voted: boolean
+    voted?: boolean
     reason?: string
 }
 
