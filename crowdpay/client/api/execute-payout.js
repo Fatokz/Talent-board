@@ -53,7 +53,7 @@ export default async function handler(req, res) {
       const requestAmount = requestData.amount || 0;
       if (requestAmount <= 0) throw new Error('Invalid withdrawal amount');
 
-      const platformFee = requestAmount * 0.02; // 2% platform fee
+      const platformFee = requestAmount * 0.03; // 3% platform fee
       const netPayout = requestAmount - platformFee;
 
       // Check Destination
@@ -86,7 +86,7 @@ export default async function handler(req, res) {
       // 2. Add to target wallet instantly
       t.update(userRef, { walletBalance: newBalance });
 
-      // 3. Loyalty Points Accrual for successfully completing a payout (Phase 3)
+      // 3. Loyalty Points Accrual
       if (targetUserId !== requestData.requestedBy) {
           const requesterDoc = await t.get(requesterRef);
           if (requesterDoc.exists) {
@@ -97,18 +97,67 @@ export default async function handler(req, res) {
           t.update(userRef, { loyaltyPoints: (userData.loyaltyPoints || 0) + 50 });
       }
 
+      const txnRef = `CP_PAYOUT_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+      t.set(db.collection('transactions').doc(txnRef), {
+          uid: targetUserId,
+          amount: netPayout,
+          type: 'deposit', // Positive credit into wallet
+          status: 'completed',
+          reference: txnRef,
+          description: `Payout from Jar: ${jarData.name} (Inc. 3% CrowdPay service fee)`,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          metadata: {
+              requestId,
+              jarId: requestData.jarId,
+              grossAmount: requestAmount,
+              platformFee: platformFee,
+              feePercentage: 0.03,
+              payoutType: requestData.type
+          }
+      });
+
+      // Platform Revenue Tracking for Admin Dashboard
+      const revenueRef = db.collection('platformRevenue').doc();
+      t.set(revenueRef, {
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          amount: platformFee,
+          source: 'jar_payout',
+          jarId: requestData.jarId,
+          requestId: requestId,
+          grossAmount: requestAmount,
+          feePercentage: 0.03
+      });
+
       // 4. Update Jar stats natively
       if (requestData.type === 'goal_withdrawal') {
-        const updatedTotalPooled = Math.max(0, (jarData.totalPooled || 0) - requestAmount);
-        const updatedRaised = Math.max(0, (jarData.raised || 0) - requestAmount);
+        // Reset goal jar to default (active and empty) so it can be used again
         t.update(jarRef, { 
-            totalPooled: updatedTotalPooled, 
-            raised: updatedRaised,
-            status: 'PAYOUT_COMPLETED' 
+            totalPooled: 0, 
+            raised: 0,
+            status: 'active' // Move back to default active state
         });
       } else if (requestData.type === 'ajo_rotation') {
+        const totalMembers = jarData.rotationOrder?.length || (jarData.members?.length || 1);
         const nextRound = (jarData.currentRound || 0) + 1;
-        t.update(jarRef, { currentRound: nextRound, disbursedRounds: nextRound, paidThisCycle: [] });
+        
+        if (nextRound >= totalMembers) {
+            // FULL CYCLE COMPLETE - RESET TO DEFAULT
+            t.update(jarRef, { 
+                currentRound: 0, 
+                disbursedRounds: 0, 
+                paidThisCycle: [],
+                raised: 0,
+                status: 'active'
+            });
+        } else {
+            // MOVE TO NEXT ROUND
+            t.update(jarRef, { 
+                currentRound: nextRound, 
+                disbursedRounds: nextRound, 
+                paidThisCycle: [],
+                raised: 0 
+            });
+        }
       }
 
       return { requestAmount, netPayout, platformFee, newBalance };

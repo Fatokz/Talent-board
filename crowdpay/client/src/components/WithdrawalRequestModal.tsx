@@ -164,9 +164,24 @@ export default function WithdrawalRequestModal({
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-5">
-                        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4">
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4">
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Amount to receive</span>
-                            <span className="text-2xl font-black text-slate-900 tracking-tight">{fmtMoney(amount)}</span>
+                            <div className="flex flex-col items-end">
+                                <p className="text-3xl font-black text-slate-900 tracking-tight">{fmtMoney(amount)}</p>
+                                <div className="mt-2 space-y-1 text-right">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        Gross Amount: {fmtMoney(amount)}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
+                                        Processing Fee (3%): -{fmtMoney(amount * 0.03)}
+                                    </p>
+                                    <div className="pt-1 border-t border-slate-100">
+                                        <p className="text-[11px] font-black text-blue-900 uppercase">
+                                            Net Payout: {fmtMoney(amount * 0.97)}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex items-start gap-2.5 bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3">

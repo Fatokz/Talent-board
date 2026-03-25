@@ -202,7 +202,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
         governanceModel: 'Unanimous Consensus',
         description: `A ${jar.frequency} ${jar.category} contribution group.`,
         color: 'from-blue-600 to-blue-500',
-        goalReached: jar.raised >= jar.goal && jar.goal > 0 && jar.status !== 'PAYOUT_COMPLETED',
+        goalReached: jar.raised >= jar.goal && jar.goal > 0 && jar.raised > 0 && jar.status !== 'PAYOUT_COMPLETED',
         jarType: jar.jarType,
         contributionAmount: jar.contributionAmount
     }));

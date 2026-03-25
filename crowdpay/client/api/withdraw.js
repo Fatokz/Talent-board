@@ -84,8 +84,13 @@ export default async function handler(req, res) {
             t.update(jarRef, { raised: admin.firestore.FieldValue.increment(Number(amount)) });
 
             t.set(db.collection('transactions').doc(txnRef), {
-                uid, amount: Number(amount), type: 'jar_withdrawal', status: 'completed',
-                reference: txnRef, description: `Contribution to ${jarName || jarDoc.data().name} from Wallet`,
+                uid, 
+                amount: Number(amount), 
+                type: 'jar_contribution', // Set as contribution for transparency mapping
+                status: 'completed',
+                reference: txnRef,
+                jarId, // CRITICAL: Missing jarId was preventing mapping in Group Management
+                description: `Contribution to ${jarName || jarDoc.data().name} from Wallet`,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
             });
 
