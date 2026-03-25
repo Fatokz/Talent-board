@@ -51,11 +51,17 @@ export default async function handler(req, res) {
         });
 
         if (!tokenResponse.ok) {
-            console.warn('Interswitch auth failed — serving static bank list');
+            console.warn(`Interswitch auth failed (Status: ${tokenResponse.status}) — serving static bank list`);
             return res.status(200).json({ success: true, data: STATIC_BANKS });
         }
 
-        const tokenData = await tokenResponse.json();
+        const tokenText = await tokenResponse.text();
+        if (!tokenText) {
+            console.warn('Interswitch auth returned empty body — serving static bank list');
+            return res.status(200).json({ success: true, data: STATIC_BANKS });
+        }
+        
+        const tokenData = JSON.parse(tokenText);
         const accessToken = tokenData.access_token;
 
         const bankResponse = await fetch('https://api-marketplace-routing.k8.isw.la/marketplace-routing/api/v1/verify/identity/account-number/bank-list', {
@@ -63,17 +69,28 @@ export default async function handler(req, res) {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
 
-        const bankData = await bankResponse.json();
+        if (!bankResponse.ok) {
+            console.warn(`Bank list fetch failed (Status: ${bankResponse.status}) — serving static bank list`);
+            return res.status(200).json({ success: true, data: STATIC_BANKS });
+        }
 
-        if (!bankResponse.ok || !bankData.success) {
-            console.warn('Bank list fetch failed — serving static bank list');
+        const bankText = await bankResponse.text();
+        if (!bankText) {
+            console.warn('Bank list fetch returned empty body — serving static bank list');
+            return res.status(200).json({ success: true, data: STATIC_BANKS });
+        }
+
+        const bankData = JSON.parse(bankText);
+
+        if (!bankData.success) {
+            console.warn('Bank list API reported failure — serving static bank list');
             return res.status(200).json({ success: true, data: STATIC_BANKS });
         }
 
         return res.status(200).json({ success: true, data: bankData.data });
 
     } catch (error) {
-        console.error('Bank fetch error:', error.message);
+        console.error('Bank fetch error details:', error.name, error.message);
         // Graceful degradation — serve static list instead of crashing
         return res.status(200).json({ success: true, data: STATIC_BANKS });
     }
