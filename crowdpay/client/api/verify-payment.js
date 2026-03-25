@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { txnRef, amount, jarId } = req.body;
+  const { txnRef, amount, jarId, uid } = req.body;
 
   if (!txnRef || !amount || !jarId) {
     return res.status(400).json({ message: 'Missing transaction details' });
@@ -71,6 +71,19 @@ export default async function handler(req, res) {
         const currentPooled = doc.data().totalPooled || 0;
         const newPooled = currentPooled + Number(amount);
         
+        // Log Transaction
+        const txnId = txnRef || `CP_JAR_${Date.now()}`;
+        t.set(db.collection('transactions').doc(txnId), {
+          uid,
+          amount: Number(amount),
+          type: 'jar_contribution',
+          status: 'completed',
+          reference: txnId,
+          description: `Contribution to Jar: ${doc.data().name || 'Savings Jar'}`,
+          jarId: jarId,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
         t.update(jarRef, { totalPooled: newPooled });
       });
 

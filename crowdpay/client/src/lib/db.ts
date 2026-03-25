@@ -82,6 +82,7 @@ export interface UserProfile {
     accountNumber?: string;
     accountName?: string;
     walletBalance?: number; // Core crowdpay wallet integration
+    walletPin?: string; // Hashed PIN if set
     loyaltyPoints?: number; // Phase 3 Rewards
     roles: ('user' | 'vendor')[];
     currentRole: 'user' | 'vendor';

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Building2, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { apiFetch } from '../utils/api'
 import { useAuth } from '../contexts/AuthContext'
 import { UserProfile } from '../lib/db'
 import WalletPinModal from './WalletPinModal'
+import toast from 'react-hot-toast'
 
 interface Props {
     isOpen: boolean
@@ -19,19 +20,39 @@ export default function WithdrawWalletModal({ isOpen, onClose, profile }: Props)
     const [success, setSuccess] = useState(false)
     const [pinModalOpen, setPinModalOpen] = useState(false)
 
+    // Reset state on every open
+    useEffect(() => {
+        if (isOpen) {
+            setAmount('')
+            setLoading(false)
+            setError('')
+            setSuccess(false)
+        }
+    }, [isOpen])
+
     if (!isOpen || !profile) return null
 
     const maxAmount = profile.walletBalance || 0
 
     const handleWithdraw = async () => {
         const val = Number(amount)
-        if (isNaN(val) || val <= 0 || val > maxAmount) {
-            setError('Please enter a valid amount up to your balance.')
+        if (isNaN(val) || val < 500) {
+            const msg = 'Minimum withdrawal amount is ₦500.'
+            setError(msg)
+            toast.error(msg)
+            return
+        }
+        if (val > maxAmount) {
+            const msg = 'Amount exceeds your available balance.'
+            setError(msg)
+            toast.error(msg)
             return
         }
 
         if (!profile.bankCode || !profile.accountNumber) {
-            setError('No bank account found. Please verify your KYC profile first.')
+            const msg = 'No bank account found. Please verify your KYC profile first.'
+            setError(msg)
+            toast.error(msg)
             return
         }
 
@@ -56,11 +77,15 @@ export default function WithdrawWalletModal({ isOpen, onClose, profile }: Props)
             const json = await res.json()
             if (res.ok && json.success) {
                 setSuccess(true)
+                toast.success('Withdrawal successful!')
             } else {
-                setError(json.message || 'Withdrawal failed')
+                const msg = json.message || 'Withdrawal failed'
+                setError(msg)
+                toast.error(msg)
             }
         } catch (err: any) {
             setError('Network error occurred.')
+            toast.error('Network error occurred.')
         } finally {
             setLoading(false)
         }
@@ -103,7 +128,10 @@ export default function WithdrawWalletModal({ isOpen, onClose, profile }: Props)
                             </div>
 
                             <div className="mb-5">
-                                <label className="block text-xs font-bold text-slate-700 mb-2">Amount to Withdraw</label>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-xs font-bold text-slate-700">Amount to Withdraw</label>
+                                    <span className="text-xs text-slate-400 font-medium">Min: ₦500 · Max: ₦{maxAmount.toLocaleString()}</span>
+                                </div>
                                 <input 
                                     type="number" 
                                     value={amount} 

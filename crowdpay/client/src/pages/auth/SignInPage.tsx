@@ -6,6 +6,7 @@ import { auth } from '../../lib/firebase'
 import { useAuth } from '../../contexts/AuthContext'
 import { friendlyAuthError } from '../../lib/authErrors'
 import Logo from '../../assets/crowdpayplain.png'
+import toast from 'react-hot-toast'
 
 export default function SignInPage() {
     const navigate = useNavigate()
@@ -26,8 +27,11 @@ export default function SignInPage() {
         try {
             await signInWithEmailAndPassword(auth, email, password)
             navigate('/dashboard')
+            toast.success('Welcome back!')
         } catch (err: any) {
-            setError(friendlyAuthError(err, 'Failed to sign in. Please check your credentials.'))
+            const msg = friendlyAuthError(err, 'Failed to sign in. Please check your credentials.')
+            setError(msg)
+            toast.error(msg)
         } finally {
             setLoading(false)
         }
@@ -38,9 +42,12 @@ export default function SignInPage() {
         setError('')
         try {
             await signInWithGoogle()
+            toast.success('Signed in with Google!')
             navigate('/dashboard')
         } catch (err: any) {
-            setError(friendlyAuthError(err, 'Google sign-in failed. Please try again.'))
+            const msg = friendlyAuthError(err, 'Google sign-in failed. Please try again.')
+            setError(msg)
+            toast.error(msg)
             setLoading(false)
         }
     }

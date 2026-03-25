@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import Sidebar from './components/Sidebar'
 import SocialDashboard from './pages/SocialDashboard'
 import PendingApprovals from './pages/PendingApprovals'
@@ -52,6 +53,7 @@ function AppShell() {
 function App() {
     return (
         <BrowserRouter>
+            <Toaster position="top-center" />
             <AuthProvider>
                 <Routes>
                     {/* Public pages */}

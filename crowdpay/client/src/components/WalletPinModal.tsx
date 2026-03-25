@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 interface Props {
     isOpen: boolean;
@@ -69,12 +70,15 @@ export default function WalletPinModal({ isOpen, onClose, onSuccess, title = 'En
                 onSuccess();
                 onClose();
             } else {
-                setError(data.message || 'Incorrect PIN. Please try again.');
+                const msg = data.message || 'Incorrect PIN. Please try again.'
+                setError(msg);
+                toast.error(msg);
                 setPin(['', '', '', '']);
                 setTimeout(() => inputRefs.current[0]?.focus(), 50);
             }
         } catch {
             setError('Network error. Please try again.');
+            toast.error('Network error. Please try again.');
         } finally {
             setLoading(false);
         }

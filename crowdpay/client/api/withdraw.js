@@ -72,6 +72,19 @@ export default async function handler(req, res) {
 
         // Deduct balance securely within the transaction lock
         const newBalance = currentBalance - amount;
+        const txnRef = `CP_WTH_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+        
+        // Log Transaction
+        t.set(db.collection('transactions').doc(txnRef), {
+          uid,
+          amount: Number(amount),
+          type: 'withdrawal',
+          status: 'completed',
+          reference: txnRef,
+          description: `Withdrawal to ${userData.bankName} (${userData.accountNumber})`,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
         t.update(userRef, { walletBalance: newBalance });
 
         return { newBalance, amount, accountName: userData.accountName };

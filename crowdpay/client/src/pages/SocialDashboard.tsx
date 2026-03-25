@@ -4,7 +4,7 @@ import {
     Bell, Search, Plus, TrendingUp, Users, Target, Award,
     Clock, Lock, ChevronRight, AlertCircle, LayoutDashboard,
     RefreshCcw, Gift, HeartHandshake, GraduationCap, Building2, Menu,
-    Wallet, ArrowDownToLine, ArrowUpRight
+    Wallet, ArrowDownToLine, ArrowUpRight, Eye, EyeOff, Loader2
 } from 'lucide-react'
 import { jarTemplates } from '../data/mockData'
 import { useAuth } from '../contexts/AuthContext'
@@ -121,10 +121,12 @@ export default function SocialDashboard({ onMenuClick }: Props) {
     const [templateName, setTemplateName] = useState('')
     const [search, setSearch] = useState('')
     const [realJars, setRealJars] = useState<Jar[]>([])
+    const [loadingJars, setLoadingJars] = useState(true)
     const [withdrawalJar, setWithdrawalJar] = useState<JarTemplate | null>(null)
     const [withdrawModalOpen, setWithdrawModalOpen] = useState(false)
     const [fundWalletModalOpen, setFundWalletModalOpen] = useState(false)
     const [fundingJar, setFundingJar] = useState<JarTemplate | null>(null)
+    const [showBalance, setShowBalance] = useState(false)
 
     // Capture Interswitch Funding Redirect
     useEffect(() => {
@@ -149,8 +151,10 @@ export default function SocialDashboard({ onMenuClick }: Props) {
 
     useEffect(() => {
         if (!currentUser) return;
+        setLoadingJars(true);
         const unsubscribe = subscribeToUserJars(currentUser.uid, (jars) => {
             setRealJars(jars);
+            setLoadingJars(false);
         });
         const unsubKyc = subscribeToUserDoc(currentUser.uid, setKycProfile);
         return () => { unsubscribe(); unsubKyc(); };
@@ -198,13 +202,13 @@ export default function SocialDashboard({ onMenuClick }: Props) {
     const stats = [
         {
             label: 'Total Jars',
-            value: activeJars.length + defaultJars.length,
-            subtext: `${activeJars.length} active`,
+            value: loadingJars ? <Loader2 size={24} className="animate-spin text-slate-400" /> : activeJars.length + defaultJars.length,
+            subtext: loadingJars ? '...' : `${activeJars.length} active`,
             icon: LayoutDashboard, grad: 'from-blue-900 to-blue-700'
         },
-        { label: 'Total Pooled', value: fmtMoney(totalRaised), icon: TrendingUp, grad: 'from-emerald-700 to-emerald-500' },
+        { label: 'Total Pooled', value: loadingJars ? <div className="h-8 w-24 bg-slate-200 animate-pulse rounded-lg" /> : fmtMoney(totalRaised), icon: TrendingUp, grad: 'from-emerald-700 to-emerald-500' },
         { label: 'Pending Invites', value: notifCount, icon: Bell, grad: 'from-indigo-700 to-indigo-500' },
-        { label: 'Goals Met', value: activeJars.filter(j => j.goalReached).length, icon: Target, grad: 'from-amber-600 to-amber-400' },
+        { label: 'Goals Met', value: loadingJars ? '...' : activeJars.filter(j => j.goalReached).length, icon: Target, grad: 'from-amber-600 to-amber-400' },
     ]
 
     const filteredActive = activeJars.filter(j =>
@@ -268,9 +272,17 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                                 <Wallet size={16} className="text-blue-300" />
                                 <p className="text-sm font-bold text-blue-200 uppercase tracking-widest">My CrowdPay Wallet</p>
                             </div>
-                            <h2 className="text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md">
-                                {fmtMoney(kycProfile?.walletBalance || 0)}
-                            </h2>
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md">
+                                    {showBalance ? fmtMoney(kycProfile?.walletBalance || 0) : '₦****'}
+                                </h2>
+                                <button 
+                                    onClick={() => setShowBalance(!showBalance)}
+                                    className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/5"
+                                >
+                                    {showBalance ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -333,7 +345,11 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                     </div>
                 </div>
 
-                {filteredActive.length === 0 ? (
+                {loadingJars ? (
+                    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
+                        {[1, 2, 3].map(i => <div key={i} className="h-[280px] bg-white rounded-3xl border border-slate-100 shadow-sm animate-pulse" />)}
+                    </div>
+                ) : filteredActive.length === 0 ? (
                     <div className="text-center py-10 bg-white rounded-3xl border border-slate-200 mb-8 border-dashed">
                         <AlertCircle size={32} className="mx-auto text-slate-300 mb-2" />
                         <p className="font-bold text-slate-500 text-sm">No active jars</p>

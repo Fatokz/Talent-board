@@ -27,6 +27,10 @@ export function useAuth() {
 
 /** Ensures a Firestore user document exists for any auth method. */
 async function ensureUserProfile(user: User) {
+    if (!db) {
+        console.error("Firebase 'db' is undefined. Check firebaseConfig and imports.", user.uid);
+        return;
+    }
     const userRef = doc(db, 'users', user.uid);
     const snap = await getDoc(userRef);
     

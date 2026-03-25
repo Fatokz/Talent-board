@@ -85,6 +85,19 @@ export default async function handler(req, res) {
           const handled = doc.data().handledTxns || [];
           if (handled.includes(txnRef)) throw new Error('already verified');
           const newBal = (doc.data().walletBalance || 0) + Number(amount);
+          
+          // Log Transaction
+          const txnRef_final = txnRef || `CP_W_${Date.now()}`;
+          t.set(db.collection('transactions').doc(txnRef_final), {
+            uid,
+            amount: Number(amount),
+            type: 'deposit',
+            status: 'completed',
+            reference: txnRef_final,
+            description: 'Wallet Funding via Interswitch',
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
           t.update(userRef, {
             walletBalance: newBal,
             loyaltyPoints: (doc.data().loyaltyPoints || 0) + 20,

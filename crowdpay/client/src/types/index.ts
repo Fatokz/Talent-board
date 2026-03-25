@@ -26,13 +26,18 @@ export interface GroupMember {
 }
 
 export interface Transaction {
-    id: number
-    type: 'deposit' | 'withdrawal'
-    member: string
-    jar: string
+    id: string
+    type: 'deposit' | 'withdrawal' | 'jar_contribution'
+    member?: string
+    uid: string
+    jar?: string
+    jarId?: string
     amount: number
     date: string
     status: 'completed' | 'pending_votes' | 'approved'
+    description?: string
+    reference?: string
+    timestamp: any // Firestore Timestamp
 }
 
 export interface PendingApproval {

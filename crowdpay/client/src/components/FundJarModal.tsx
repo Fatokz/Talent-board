@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Lock, Coins, ShieldCheck, CreditCard, Loader2 } from 'lucide-react'
 import { JarTemplate } from '../types'
 import { useAuth } from '../contexts/AuthContext'
+import toast from 'react-hot-toast'
 
 interface Props {
     isOpen: boolean
@@ -15,6 +16,15 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
+    // Reset state every time the modal opens so stale loading/error never persists
+    useEffect(() => {
+        if (isOpen) {
+            setAmount('')
+            setLoading(false)
+            setError('')
+        }
+    }, [isOpen])
+
     if (!isOpen) return null
 
     const handleFund = async (e: React.FormEvent) => {
@@ -22,8 +32,13 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
         setError('')
         
         const numAmount = Number(amount.replace(/,/g, ''))
-        if (!numAmount || numAmount <= 0) {
-            setError('Please enter a valid amount')
+        if (!numAmount || numAmount < 500) {
+            toast.error('Minimum contribution amount is ₦500')
+            return
+        }
+
+        if (numAmount > 1000000) {
+            toast.error('Maximum single transaction limit is ₦1,000,000')
             return
         }
 
@@ -42,45 +57,73 @@ export default function FundJarModal({ isOpen, onClose, jar }: Props) {
 
             const data = await res.json()
             if (!res.ok) throw new Error(data.message || 'Failed to initiate payment')
+            toast.success('Initializing Secure Payment...')
 
-            // 2. We dynamically create a form to POST to Interswitch WebPAY
+            // 2. Load inline script dynamically
             const isProd = import.meta.env.PROD // Vite checks if production build
-            const actionUrl = isProd 
-                ? 'https://webpay.interswitchng.com/paydirect/pay'
-                : 'https://qa.interswitchng.com/paydirect/pay'
+            const scriptUrl = isProd 
+                ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
+                : 'https://qa.interswitchng.com/collections/public/javascripts/inline-checkout.js'
 
-            const form = document.createElement('form')
-            form.method = 'POST'
-            form.action = actionUrl
-            
-            // Add all required fields from our secure backend hash
-            const fields = {
-                product_id: data.productId,
-                pay_item_id: data.payItemId,
-                amount: data.amount, // in kobo
-                currency: data.currency,
-                site_redirect_url: data.siteRedirectUrl,
-                txn_ref: data.txnRef,
-                hash: data.hash,
-                cust_email: data.email,
-                cust_name: currentUser?.displayName || 'CrowdPay Member'
+            if (!document.getElementById('interswitch-inline')) {
+                const script = document.createElement('script')
+                script.id = 'interswitch-inline'
+                script.src = scriptUrl
+                document.body.appendChild(script)
+                await new Promise(resolve => script.onload = resolve)
             }
 
-            Object.entries(fields).forEach(([key, value]) => {
-                const input = document.createElement('input')
-                input.type = 'hidden'
-                input.name = key
-                input.value = String(value)
-                form.appendChild(input)
-            })
+            // 3. Launch the inline WebCheckout modal
+            (window as any).webpayCheckout({
+                merchant_code: String(data.productId || 'MX179536'),
+                pay_item_id: String(data.payItemId || 'Default_Payable_MX179536'),
+                txn_ref: String(data.txnRef),
+                amount: String(data.amount || Math.round(numAmount * 100)),
+                currency: String(data.currency || '566'),
+                site_redirect_url: data.siteRedirectUrl,
+                mode: isProd ? 'LIVE' : 'TEST',
+                onComplete: async function(response: any) {
+                    console.log("Interswitch Callback:", response);
 
-            document.body.appendChild(form)
-            form.submit()
-            // The browser will now redirect to Interswitch checkout page
+                    // Interswitch Success Response Codes are '00' and '000'
+                    if (response.resp !== '00' && response.resp !== '000') {
+                        toast.error(response.desc || 'Payment transaction was not successful.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    setLoading(true);
+                    try {
+                        const verifyReq = await fetch('/api/verify-payment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                txnRef: response.txnref || data.txnRef, 
+                                amount: numAmount, 
+                                uid: currentUser?.uid,
+                                jarId: jar.id
+                            })
+                        });
+                        const verifyRes = await verifyReq.json();
+                        if (verifyRes.success) {
+                            toast.success('Payment Verification Successful! Jar Funded.');
+                            onClose();
+                        } else {
+                            toast.error(verifyRes.message || 'Verification Failed');
+                        }
+                    } catch (e) {
+                        toast.error('Verification error');
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+            });
 
         } catch (err: any) {
             console.error('Funding error:', err)
-            setError(err.message || 'An error occurred connecting to Interswitch.')
+            const msg = err.message || 'An error occurred connecting to Interswitch.'
+            setError(msg)
+            toast.error(msg)
             setLoading(false)
         }
     }

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Lock, Wallet, ShieldCheck, CreditCard, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import toast from 'react-hot-toast'
 
 interface Props {
     isOpen: boolean
@@ -13,6 +14,15 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
+    // Reset state every time the modal opens so stale loading/error never persists
+    useEffect(() => {
+        if (isOpen) {
+            setAmount('')
+            setLoading(false)
+            setError('')
+        }
+    }, [isOpen])
+
     if (!isOpen) return null
 
     const handleFund = async (e: React.FormEvent) => {
@@ -20,8 +30,15 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
         setError('')
         
         const numAmount = Number(amount.replace(/,/g, ''))
-        if (!numAmount || numAmount <= 0) {
-            setError('Please enter a valid amount')
+        if (!numAmount || numAmount < 500) {
+            setError('Minimum deposit amount is ₦500')
+            toast.error('Minimum deposit amount is ₦500')
+            return
+        }
+
+        if (numAmount > 1000000) {
+            setError('Maximum single transaction limit is ₦1,000,000')
+            toast.error('Maximum single transaction limit is ₦1,000,000')
             return
         }
 
@@ -39,42 +56,72 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
 
             const data = await res.json()
             if (!res.ok) throw new Error(data.message || 'Failed to initiate payment')
-
-            const isProd = import.meta.env.PROD
-            const actionUrl = isProd 
-                ? 'https://webpay.interswitchng.com/paydirect/pay'
-                : 'https://qa.interswitchng.com/paydirect/pay'
-
-            const form = document.createElement('form')
-            form.method = 'POST'
-            form.action = actionUrl
+            toast.success('Initializing Secure Payment...')
             
-            const fields = {
-                product_id: data.productId,
-                pay_item_id: data.payItemId,
-                amount: data.amount,
-                currency: data.currency,
-                site_redirect_url: data.siteRedirectUrl,
-                txn_ref: data.txnRef,
-                hash: data.hash,
-                cust_email: data.email,
-                cust_name: currentUser?.displayName || 'CrowdPay Member'
+            // 2. Load inline-checkout script dynamically
+            const isProd = import.meta.env.PROD
+            const scriptUrl = isProd 
+                ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
+                : 'https://qa.interswitchng.com/collections/public/javascripts/inline-checkout.js'
+            
+            if (!document.getElementById('interswitch-inline')) {
+                const script = document.createElement('script')
+                script.id = 'interswitch-inline'
+                script.src = scriptUrl
+                document.body.appendChild(script)
+                await new Promise(resolve => script.onload = resolve)
             }
 
-            Object.entries(fields).forEach(([key, value]) => {
-                const input = document.createElement('input')
-                input.type = 'hidden'
-                input.name = key
-                input.value = String(value)
-                form.appendChild(input)
-            })
+            // 3. Launch the inline WebCheckout modal
+            (window as any).webpayCheckout({
+                merchant_code: String(data.productId || 'MX179536'),
+                pay_item_id: String(data.payItemId || 'Default_Payable_MX179536'),
+                txn_ref: String(data.txnRef),
+                amount: String(data.amount || Math.round(numAmount * 100)),
+                currency: String(data.currency || '566'),
+                site_redirect_url: data.siteRedirectUrl, // Passed just in case, but intercepted below
+                mode: isProd ? 'LIVE' : 'TEST',
+                onComplete: async function(response: any) {
+                    console.log("Interswitch Callback:", response);
+                    
+                    // Interswitch Success Response Codes are '00' and '000'
+                    if (response.resp !== '00' && response.resp !== '000') {
+                        toast.error(response.desc || 'Payment transaction was not successful.');
+                        setLoading(false);
+                        return;
+                    }
 
-            document.body.appendChild(form)
-            form.submit()
+                    setLoading(true);
+                    try {
+                        const verifyReq = await fetch('/api/wallet-funding?action=verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                txnRef: response.txnref || data.txnRef, 
+                                amount: numAmount, 
+                                uid: currentUser?.uid 
+                            })
+                        });
+                        const verifyRes = await verifyReq.json();
+                        if (verifyRes.success) {
+                            toast.success('Payment Verification Successful! Wallet Funded.');
+                            onClose();
+                        } else {
+                            toast.error(verifyRes.message || 'Verification Failed');
+                        }
+                    } catch (e) {
+                        toast.error('Verification error');
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+            });
 
         } catch (err: any) {
             console.error('Funding error:', err)
-            setError(err.message || 'An error occurred connecting to Interswitch.')
+            const msg = err.message || 'An error occurred connecting to Interswitch.'
+            setError(msg)
+            toast.error(msg)
             setLoading(false)
         }
     }
@@ -105,7 +152,10 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
 
                 <form onSubmit={handleFund} className="p-6">
                     <div className="mb-6">
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Deposit Amount (₦)</label>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-sm font-bold text-slate-700">Deposit Amount (₦)</label>
+                            <span className="text-xs text-slate-400 font-medium">Min: ₦500 · Max: ₦1,000,000</span>
+                        </div>
                         <div className="relative">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₦</span>
                             <input 
@@ -116,7 +166,7 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
                                     const val = e.target.value.replace(/\D/g, '')
                                     setAmount(val ? Number(val).toLocaleString() : '')
                                 }}
-                                placeholder="50,000"
+                                placeholder="1,000"
                                 className="w-full h-14 pl-10 pr-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none text-xl font-black text-slate-900 transition-all placeholder:text-slate-300"
                             />
                         </div>
@@ -155,7 +205,7 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
 
                     <button 
                         type="submit"
-                        disabled={loading || numAmount <= 0}
+                        disabled={loading || numAmount < 500 || numAmount > 1000000}
                         className="w-full h-14 rounded-xl bg-gradient-to-r from-blue-900 to-blue-700 text-white font-black text-base shadow-lg shadow-blue-900/30 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                     >
                         {loading ? <><Loader2 size={20} className="animate-spin" /> Preparing Checkout...</> : <><CreditCard size={20} /> Proceed to Interswitch</>}

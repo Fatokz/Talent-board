@@ -5,6 +5,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { subscribeToUserDoc, updateUserProfile, UserProfile } from '../lib/db'
 import { apiFetch } from '../utils/api';
+import toast from 'react-hot-toast'
 
 interface Props { onMenuClick?: () => void }
 
@@ -29,7 +30,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
     const [newPin, setNewPin] = useState('')
     const [confirmPin, setConfirmPin] = useState('')
     const [pinLoading, setPinLoading] = useState(false)
-    const [pinMsg, setPinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+    const [isChangeMode, setIsChangeMode] = useState(false)
 
     // Fetch banks
     useEffect(() => {
@@ -109,7 +110,9 @@ export default function ProfilePage({ onMenuClick }: Props) {
             const json = await res.json()
 
             if (!res.ok || !json.success) {
-                setError(json.message || 'NIN Verification failed. Please check your details.')
+                const msg = json.message || 'NIN Verification failed. Please check your details.'
+                setError(msg)
+                toast.error(msg)
                 await updateUserProfile(currentUser!.uid, { kycStatus: 'unverified' })
                 setVerifying(false)
                 return
@@ -129,7 +132,9 @@ export default function ProfilePage({ onMenuClick }: Props) {
             const bankJson = await bankRes.json()
 
             if (!bankRes.ok || !bankJson.success) {
-                setError(bankJson.message || 'Bank Account Verification failed. Please check your details.')
+                const msg = bankJson.message || 'Bank Account Verification failed. Please check your details.'
+                setError(msg)
+                toast.error(msg)
                 await updateUserProfile(currentUser!.uid, { kycStatus: 'unverified' })
                 setVerifying(false)
                 return
@@ -150,8 +155,11 @@ export default function ProfilePage({ onMenuClick }: Props) {
                 // Optional: Sync back the official names from the API response
                 fullName: `${json.data.firstName} ${json.data.lastName}`.trim()
             })
+            toast.success("Profile verified successfully!")
         } catch (err: any) {
-            setError('Network error occurred during verification.')
+            const msg = 'Network error occurred during verification.'
+            setError(msg)
+            toast.error(msg)
             await updateUserProfile(currentUser!.uid, { kycStatus: 'unverified' })
         } finally {
             setVerifying(false)
@@ -388,7 +396,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
 
             {/* ── Wallet PIN Section (only after KYC verified) ── */}
             {isVerified && (
-                <div className="max-w-2xl mx-auto px-4 mt-6">
+                <div className="max-w-3xl mx-auto px-4 mt-6">
                     <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                         <div className="px-7 py-5 border-b border-slate-100">
                             <div className="flex items-center gap-3">
@@ -400,58 +408,86 @@ export default function ProfilePage({ onMenuClick }: Props) {
                             </div>
                         </div>
                         <div className="p-7 space-y-4">
-                            {pinMsg && (
-                                <div className={`flex items-center gap-2 p-3 rounded-xl text-sm font-medium border ${
-                                    pinMsg.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'
-                                }`}>
-                                    {pinMsg.type === 'success' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
-                                    {pinMsg.text}
+                            {profile.walletPin && !isChangeMode ? (
+                                <div className="space-y-4">
+                                    <div className="flex flex-col items-center justify-center p-6 bg-emerald-50 rounded-2xl border border-emerald-100 text-center space-y-3">
+                                        <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-1">
+                                            <ShieldCheck size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-black text-emerald-900">Wallet Secured</h3>
+                                            <p className="text-xs text-emerald-700 mt-1 max-w-xs leading-relaxed">Your 4-digit PIN is set and required for all withdrawals.</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsChangeMode(true)}
+                                        className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all active:scale-95"
+                                    >
+                                        Change PIN
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {isChangeMode && (
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-sm font-black text-slate-800">Set New PIN</h3>
+                                            <button 
+                                                onClick={() => { setIsChangeMode(false); setNewPin(''); setConfirmPin(''); }}
+                                                className="text-xs font-bold text-slate-400 hover:text-slate-600"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 mb-1.5">New 4-digit PIN</label>
+                                            <input
+                                                type="password" inputMode="numeric" maxLength={4} placeholder="••••"
+                                                value={newPin}
+                                                onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xl font-black tracking-[0.5em] focus:outline-none focus:border-blue-500 text-center"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 mb-1.5">Confirm PIN</label>
+                                            <input
+                                                type="password" inputMode="numeric" maxLength={4} placeholder="••••"
+                                                value={confirmPin}
+                                                onChange={e => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xl font-black tracking-[0.5em] focus:outline-none focus:border-blue-500 text-center"
+                                            />
+                                        </div>
+                                    </div>
+                                    <button
+                                        disabled={pinLoading || newPin.length !== 4 || newPin !== confirmPin}
+                                        onClick={async () => {
+                                            setPinLoading(true)
+                                            try {
+                                                const res = await fetch('/api/wallet-pin?action=set', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ uid: currentUser?.uid, pin: newPin })
+                                                });
+                                                const data = await res.json();
+                                                if (data.success) {
+                                                    toast.success('PIN set! Your wallet is now secured.');
+                                                    setNewPin(''); setConfirmPin('');
+                                                    setIsChangeMode(false);
+                                                } else {
+                                                    toast.error(data.message || 'Failed to set PIN.');
+                                                }
+                                            } catch { 
+                                                toast.error('Network error. Failed to set PIN.'); 
+                                            }
+                                            finally { setPinLoading(false); }
+                                        }}
+                                        className="w-full py-3 rounded-xl bg-slate-900 text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-40 transition-all active:scale-95">
+                                        {pinLoading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Lock size={14} /> {isChangeMode ? 'Update PIN' : 'Set Wallet PIN'}</>}
+                                    </button>
+                                    <p className="text-[10px] text-slate-400 text-center">{isChangeMode ? "Your original PIN will be replaced by the new PIN." : "PIN is hashed with SHA-256 and never stored in plain text."}</p>
                                 </div>
                             )}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1.5">New 4-digit PIN</label>
-                                    <input
-                                        type="password" inputMode="numeric" maxLength={4} placeholder="••••"
-                                        value={newPin}
-                                        onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xl font-black tracking-[0.5em] focus:outline-none focus:border-blue-500 text-center"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Confirm PIN</label>
-                                    <input
-                                        type="password" inputMode="numeric" maxLength={4} placeholder="••••"
-                                        value={confirmPin}
-                                        onChange={e => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xl font-black tracking-[0.5em] focus:outline-none focus:border-blue-500 text-center"
-                                    />
-                                </div>
-                            </div>
-                            <button
-                                disabled={pinLoading || newPin.length !== 4 || newPin !== confirmPin}
-                                onClick={async () => {
-                                    setPinLoading(true); setPinMsg(null);
-                                    try {
-                                        const res = await fetch('/api/wallet-pin?action=set', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ uid: currentUser?.uid, pin: newPin })
-                                        });
-                                        const data = await res.json();
-                                        if (data.success) {
-                                            setPinMsg({ type: 'success', text: 'PIN set! Your wallet is now secured.' });
-                                            setNewPin(''); setConfirmPin('');
-                                        } else {
-                                            setPinMsg({ type: 'error', text: data.message || 'Failed to set PIN.' });
-                                        }
-                                    } catch { setPinMsg({ type: 'error', text: 'Network error.' }); }
-                                    finally { setPinLoading(false); }
-                                }}
-                                className="w-full py-3 rounded-xl bg-slate-900 text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-40 transition-all active:scale-95">
-                                {pinLoading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Lock size={14} /> Set Wallet PIN</>}
-                            </button>
-                            <p className="text-[10px] text-slate-400 text-center">PIN is hashed with SHA-256 and never stored in plain text.</p>
                         </div>
                     </div>
                 </div>

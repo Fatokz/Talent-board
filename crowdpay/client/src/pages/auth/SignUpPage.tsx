@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { createVendorProfile } from '../../lib/db'
 import { friendlyAuthError } from '../../lib/authErrors'
 import Logo from '../../assets/crowdpayplain.png'
+import toast from 'react-hot-toast'
 
 export default function SignUpPage() {
     const navigate = useNavigate()
@@ -28,7 +29,10 @@ export default function SignUpPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (form.password !== form.confirmPw) return;
+        if (form.password !== form.confirmPw) {
+            toast.error("Passwords don't match")
+            return;
+        }
 
         setLoading(true)
         setError('')
@@ -63,9 +67,12 @@ export default function SignUpPage() {
             }
 
             // 4. Navigate home
+            toast.success('Account created successfully!')
             navigate('/dashboard')
         } catch (err: any) {
-            setError(friendlyAuthError(err, 'Failed to create account. Please try again.'));
+            const msg = friendlyAuthError(err, 'Failed to create account. Please try again.')
+            setError(msg)
+            toast.error(msg)
         } finally {
             setLoading(false)
         }
@@ -81,9 +88,12 @@ export default function SignUpPage() {
             // When they arrive here, auth.currentUser is set
             // Check if they already exist in database? (For hackathon speed, we'll assume the 
             // merge happens flawlessly by setting it with merge: true if you want, or just redirecting)
+            toast.success('Signed in with Google!')
             navigate('/dashboard')
         } catch (err: any) {
-            setError(friendlyAuthError(err, 'Google sign-in failed. Please try again.'))
+            const msg = friendlyAuthError(err, 'Google sign-in failed. Please try again.')
+            setError(msg)
+            toast.error(msg)
             setLoading(false)
         }
     }
