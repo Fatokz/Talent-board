@@ -130,7 +130,7 @@ export default function WithdrawalRequestModal({
                 isExternalLoading={loading}
             />
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={handleClose} />
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-y-auto max-h-[90vh] flex flex-col scrollbar-hide">
                 <div className="h-1 bg-gradient-to-r from-blue-900 via-blue-500 to-emerald-500 shrink-0" />
 
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">

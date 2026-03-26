@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Store, ShieldCheck, Star, MessageSquare, ShoppingCart, Search } from 'lucide-react'
+import { Store, ShieldCheck, Star, MessageSquare, ShoppingCart, Search, Menu } from 'lucide-react'
 import { subscribeToAllProducts, subscribeToAllVendors, Product, VendorProfile } from '../lib/db'
 import VendorChatModal from '../components/VendorChatModal'
 import CreateJarModal from '../components/CreateJarModal'
@@ -60,7 +60,7 @@ export default function Marketplace({ onMenuClick }: Props) {
             <div className="bg-white border-b border-slate-100 px-4 md:px-6 min-h-[68px] py-3 flex flex-col md:flex-row items-center justify-between sticky top-0 z-30 shadow-sm gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto flex-1">
                     <button onClick={onMenuClick} className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                        <Store size={18} className="text-slate-600" />
+                        <Menu size={18} className="text-slate-600" />
                     </button>
                     <h1 className="text-xl font-black text-slate-900 hidden sm:block tracking-tight shrink-0">
                         Marketplace

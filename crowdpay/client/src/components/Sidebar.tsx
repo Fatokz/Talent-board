@@ -1,23 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-    LayoutDashboard, Bell, Users, BookOpen, LogOut, X, User as UserIcon, Store, Package, ArrowRightLeft, PlusCircle
+    LayoutDashboard, Bell, Users, BookOpen, LogOut, X, User as UserIcon, Store, ArrowRightLeft, PlusCircle
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { subscribeToUserInvites, subscribeToVendorProfile } from '../lib/db'
 import Logo from '../assets/crowdpayplain.png'
-import MerchantOnboardingModal from './MerchantOnboardingModal'
 
-interface SidebarProps { isOpen: boolean; onClose: () => void }
+interface SidebarProps { 
+    isOpen: boolean; 
+    onClose: () => void;
+    onOpenOnboarding: () => void;
+}
 
-function SidebarContent({ onClose }: { onClose: () => void }) {
+function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, onOpenOnboarding: () => void }) {
     const navigate = useNavigate()
     const { currentUser, userProfile, signOut, switchRole } = useAuth()
     const [notifCount, setNotifCount] = useState(0)
     const [vendorName, setVendorName] = useState<string>('')
     const [switching, setSwitching] = useState(false)
     const [showRoleSelect, setShowRoleSelect] = useState(false)
-    const [onboardingModal, setOnboardingModal] = useState(false)
+    const roleSelectRef = useRef<HTMLDivElement>(null)
+
+    // Click away to close role selector
+    useEffect(() => {
+        const handleClickAway = (e: MouseEvent) => {
+            if (roleSelectRef.current && !roleSelectRef.current.contains(e.target as Node)) {
+                setShowRoleSelect(false)
+            }
+        }
+        if (showRoleSelect) {
+            document.addEventListener('mousedown', handleClickAway)
+        } else {
+            document.removeEventListener('mousedown', handleClickAway)
+        }
+        return () => document.removeEventListener('mousedown', handleClickAway)
+    }, [showRoleSelect])
 
     // Real-time pending invite count for the badge
     useEffect(() => {
@@ -54,7 +72,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
         try {
             const isVendor = userProfile?.roles?.includes('vendor')
             if (!isVendor) {
-                setOnboardingModal(true)
+                onOpenOnboarding()
                 setSwitching(false)
                 return
             } else {
@@ -139,7 +157,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                 
                 {/* Integrated Role Switcher (Professional Dropdown) */}
                 {currentUser && (
-                    <div className="mb-4 relative">
+                    <div className="mb-4 relative" ref={roleSelectRef}>
                         {/* Dropdown Menu */}
                         {showRoleSelect && (
                             <div className="absolute bottom-full left-0 right-0 mb-2 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -239,28 +257,20 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                 </button>
             </div>
 
-            {/* Merchant Onboarding Modal Overlay */}
-            {currentUser && (
-                <MerchantOnboardingModal 
-                    isOpen={onboardingModal}
-                    onClose={() => setOnboardingModal(false)}
-                    uid={currentUser.uid}
-                />
-            )}
         </div>
     )
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onOpenOnboarding }: SidebarProps) {
     return (
         <>
             <div className="hidden lg:flex shrink-0">
-                <SidebarContent onClose={onClose} />
+                <SidebarContent onClose={onClose} onOpenOnboarding={onOpenOnboarding} />
             </div>
             <div className={`lg:hidden fixed inset-0 z-50 flex transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
                 <div onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
                 <div className={`relative z-10 h-full transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <SidebarContent onClose={onClose} />
+                    <SidebarContent onClose={onClose} onOpenOnboarding={onOpenOnboarding} />
                 </div>
             </div>
         </>

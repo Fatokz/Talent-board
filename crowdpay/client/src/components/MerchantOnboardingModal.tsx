@@ -67,9 +67,9 @@ export default function MerchantOnboardingModal({ isOpen, onClose, uid }: Props)
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
             
-            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-300">
                 {/* Header Header */}
-                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-8 text-white relative">
+                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 sm:p-8 text-white relative shrink-0">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
                     <button onClick={onClose} className="absolute top-6 right-6 w-8 h-8 rounded-full bg-black/10 flex items-center justify-center hover:bg-black/20 transition-colors">
                         <X size={15} />
@@ -82,7 +82,7 @@ export default function MerchantOnboardingModal({ isOpen, onClose, uid }: Props)
                     <p className="text-emerald-100 text-xs font-medium mt-1">Grow your business with CrowdPay marketplace.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
                     <div className="space-y-5">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Business Name</label>

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Sidebar from './components/Sidebar'
 import VendorSidebar from './components/VendorSidebar'
+import MerchantOnboardingModal from './components/MerchantOnboardingModal'
 import { useAuth } from './contexts/AuthContext'
 import SocialDashboard from './pages/SocialDashboard'
 import PendingApprovals from './pages/PendingApprovals'
@@ -21,8 +22,9 @@ import './index.css'
 
 /* ── Authenticated app shell (sidebar + inner pages) ─────────────────── */
 function AppShell() {
-    const { userProfile } = useAuth()
+    const { currentUser, userProfile } = useAuth()
     const [sidebarOpen, setSidebarOpen] = useState<boolean>(false)
+    const [onboardingOpen, setOnboardingOpen] = useState(false)
     const isVendorMode = userProfile?.currentRole === 'vendor'
 
     return (
@@ -38,7 +40,11 @@ function AppShell() {
             {isVendorMode ? (
                 <VendorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             ) : (
-                <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+                <Sidebar 
+                    isOpen={sidebarOpen} 
+                    onClose={() => setSidebarOpen(false)} 
+                    onOpenOnboarding={() => setOnboardingOpen(true)} 
+                />
             )}
 
             <main className="flex-1 overflow-y-auto">
@@ -58,6 +64,14 @@ function AppShell() {
                     <Route path="/vendor/settings" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
                 </Routes>
             </main>
+
+            {currentUser && (
+                <MerchantOnboardingModal 
+                    isOpen={onboardingOpen} 
+                    onClose={() => setOnboardingOpen(false)} 
+                    uid={currentUser.uid} 
+                />
+            )}
         </div>
     )
 }
