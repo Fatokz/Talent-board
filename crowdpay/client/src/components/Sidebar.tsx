@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
     LayoutDashboard, Bell, Users, BookOpen, LogOut, X, User as UserIcon, Store, ArrowRightLeft, PlusCircle
@@ -6,6 +7,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { subscribeToUserInvites, subscribeToVendorProfile } from '../lib/db'
 import Logo from '../assets/crowdpayplain.png'
+import toast from 'react-hot-toast'
 
 interface SidebarProps { 
     isOpen: boolean; 
@@ -20,6 +22,7 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
     const [vendorName, setVendorName] = useState<string>('')
     const [switching, setSwitching] = useState(false)
     const [showRoleSelect, setShowRoleSelect] = useState(false)
+    const [confirmSignOut, setConfirmSignOut] = useState(false)
     const roleSelectRef = useRef<HTMLDivElement>(null)
 
     // Click away to close role selector
@@ -53,7 +56,7 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
         })
     }, [userProfile?.vendorId])
 
-    const currentRole = userProfile?.currentRole || 'user'
+    const currentRole = 'user' as string
 
     const navItems = [
         { to: '/dashboard/', icon: LayoutDashboard, label: 'Social Dashboard', end: true, badge: undefined as number | undefined },
@@ -76,9 +79,10 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
                 setSwitching(false)
                 return
             } else {
-                const nextRole = currentRole === 'user' ? 'vendor' : 'user'
+                const nextRole = 'vendor' as 'user' | 'vendor'
                 await switchRole(nextRole)
-                navigate(nextRole === 'user' ? '/dashboard' : '/dashboard/vendor')
+                navigate('/dashboard/vendor')
+                toast.success('🏪 Switched to Merchant Account')
             }
             onClose()
         } catch (err) {
@@ -93,7 +97,17 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
     }
 
     return (
-        <div className="w-64 h-screen flex flex-col bg-gradient-to-b from-slate-900 via-blue-950 to-blue-900 relative overflow-hidden">
+        <>
+        {/* Full-screen switching overlay */}
+        {switching && createPortal(
+            <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md font-sans">
+                <div className="w-16 h-16 rounded-full border-4 border-white/10 border-t-emerald-400 animate-spin mb-6" />
+                <p className="text-white font-black text-lg tracking-tight">Switching profile…</p>
+                <p className="text-white/40 text-xs font-medium mt-1">Please wait</p>
+            </div>,
+            document.body
+        )}
+        <div className="w-64 h-[100dvh] flex flex-col bg-gradient-to-b from-slate-900 via-blue-950 to-blue-900 relative overflow-y-auto custom-scrollbar">
             {/* Glow orbs */}
             <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
             <div className="absolute bottom-20 -left-16 w-48 h-48 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
@@ -118,6 +132,7 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
                 <div className="flex flex-col gap-1">
                     {filteredNav.map(item => (
                         <NavLink key={item.to + item.label} to={item.to} end={item.end}
+                            onClick={onClose}
                             className={({ isActive }) =>
                                 `flex items-center gap-3 px-3 py-3 rounded-2xl transition-all ${isActive
                                     ? 'bg-white/12 border border-white/15 shadow-inner shadow-black/20'
@@ -227,10 +242,8 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
                                     {currentRole === 'vendor' ? <Store size={18} className="text-white" /> : <UserIcon size={18} className="text-white" />}
                                 </div>
                                 <div className="text-left">
-                                    <p className="text-[11px] font-black text-white uppercase tracking-tight">Active Profile</p>
-                                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest">
-                                        {currentRole === 'vendor' ? (vendorName || 'Merchant') : 'Personal'}
-                                    </p>
+                                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-0.5">Currently Using</p>
+                                    <p className="text-[12px] font-black text-white uppercase tracking-tight">Personal Account</p>
                                 </div>
                             </div>
                             <ArrowRightLeft size={12} className="text-white/20 group-hover:text-white/50 transition-colors" />
@@ -251,13 +264,32 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
                     </div>
                 </div>
 
-                <button onClick={handleSignOut}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[11px] font-black uppercase tracking-widest hover:text-white hover:bg-white/10 hover:border-white/20 transition-all active:scale-95">
+                <button onClick={() => setConfirmSignOut(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 border border-white/20 text-white/90 text-[11px] font-black uppercase tracking-widest hover:text-white hover:bg-white/20 hover:border-white/30 transition-all active:scale-95">
                     <LogOut size={14} /> Sign out
                 </button>
+
+                {confirmSignOut && createPortal(
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 font-sans">
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setConfirmSignOut(false)} />
+                        <div className="relative bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 border border-slate-100">
+                             <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6">
+                                 <LogOut size={32} className="text-red-500 ml-1" />
+                             </div>
+                             <h3 className="text-2xl font-black text-slate-900 mb-2 text-center tracking-tight">Sign Out</h3>
+                             <p className="text-sm text-slate-500 font-medium mb-8 text-center leading-relaxed">Are you sure you want to log out of your CrowdPay account?</p>
+                             <div className="flex flex-col gap-3">
+                                 <button onClick={handleSignOut} className="w-full py-4 rounded-2xl bg-red-600 text-white font-black text-[15px] hover:bg-red-700 shadow-lg shadow-red-600/20 transition-all active:scale-95">Yes, sign out</button>
+                                 <button onClick={() => setConfirmSignOut(false)} className="w-full py-4 rounded-2xl bg-slate-50 text-slate-700 font-bold text-[15px] hover:bg-slate-100 transition-colors">Cancel</button>
+                             </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
             </div>
 
         </div>
+        </>
     )
 }
 

@@ -5,7 +5,7 @@ import {
     Bell, Search, Plus, TrendingUp, Users, Target, Award,
     Clock, Lock, ChevronRight, AlertCircle, LayoutDashboard,
     RefreshCcw, Gift, HeartHandshake, GraduationCap, Building2, Menu,
-    Wallet, ArrowDownToLine, ArrowUpRight, Eye, EyeOff, Loader2
+    Wallet, ArrowDownToLine, ArrowUpRight, Eye, EyeOff, Loader2, Store
 } from 'lucide-react'
 import { jarTemplates } from '../data/mockData'
 import { useAuth } from '../contexts/AuthContext'

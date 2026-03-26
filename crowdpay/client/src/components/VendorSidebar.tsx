@@ -1,19 +1,44 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { 
-    LayoutDashboard, Package, ShoppingBag, DollarSign, Settings, 
-    LogOut, Store, ArrowLeftRight, Bell, ShieldCheck, ChevronRight
+import {
+    LayoutDashboard, Package, ShoppingBag, DollarSign, Settings,
+    LogOut, X, User as UserIcon, Store, ArrowRightLeft, ShieldCheck
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeToVendorOrders } from '../lib/db'
+import { subscribeToVendorOrders, subscribeToVendorProfile } from '../lib/db'
 import Logo from '../assets/crowdpayplain.png'
+import toast from 'react-hot-toast'
 
-interface SidebarProps { isOpen: boolean; onClose: () => void }
+interface SidebarProps { 
+    isOpen: boolean; 
+    onClose: () => void;
+}
 
-export default function VendorSidebar({ isOpen, onClose }: SidebarProps) {
+function SidebarContent({ onClose }: { onClose: () => void }) {
     const navigate = useNavigate()
-    const { currentUser, userProfile, signOut, switchRole } = useAuth()
+    const { currentUser, signOut, switchRole } = useAuth()
     const [pendingOrders, setPendingOrders] = useState(0)
+    const [vendorName, setVendorName] = useState<string>('')
+    const [switching, setSwitching] = useState(false)
+    const [showRoleSelect, setShowRoleSelect] = useState(false)
+    const [confirmSignOut, setConfirmSignOut] = useState(false)
+    const roleSelectRef = useRef<HTMLDivElement>(null)
+
+    // Click away to close role selector
+    useEffect(() => {
+        const handleClickAway = (e: MouseEvent) => {
+            if (roleSelectRef.current && !roleSelectRef.current.contains(e.target as Node)) {
+                setShowRoleSelect(false)
+            }
+        }
+        if (showRoleSelect) {
+            document.addEventListener('mousedown', handleClickAway)
+        } else {
+            document.removeEventListener('mousedown', handleClickAway)
+        }
+        return () => document.removeEventListener('mousedown', handleClickAway)
+    }, [showRoleSelect])
 
     useEffect(() => {
         if (!currentUser?.uid) return
@@ -22,105 +47,237 @@ export default function VendorSidebar({ isOpen, onClose }: SidebarProps) {
         })
     }, [currentUser])
 
-    const handleSwitch = async () => {
-        await switchRole('user')
-        navigate('/dashboard')
-        onClose()
-    }
+    useEffect(() => {
+        if (!currentUser?.uid) return
+        return subscribeToVendorProfile(currentUser.uid, (v: any) => {
+            if (v) setVendorName(v.name)
+        })
+    }, [currentUser])
+
+    const currentRole = 'vendor' as string
 
     const navItems = [
         { to: '/dashboard/vendor', icon: LayoutDashboard, label: 'Merchant Hub', end: true },
         { to: '/dashboard/vendor/products', icon: Package, label: 'Product Inventory' },
         { to: '/dashboard/vendor/orders', icon: ShoppingBag, label: 'Orders', badge: pendingOrders > 0 ? pendingOrders : undefined },
         { to: '/dashboard/vendor/payouts', icon: DollarSign, label: 'Earnings & Payouts' },
+        { to: '/dashboard/vendor/profile', icon: UserIcon, label: 'Merchant Profile' },
+        { to: '/dashboard/vendor/kyc', icon: ShieldCheck, label: 'KYC Verification' },
         { to: '/dashboard/vendor/settings', icon: Settings, label: 'Merchant Settings' },
     ]
 
-    return (
-        <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#020617] transform transition-transform duration-500 ease-soft-out border-r border-white/5 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="flex flex-col h-full">
-                {/* Header */}
-                <div className="p-8 pb-4">
-                    <img src={Logo} alt="CrowdPay" className="h-8 brightness-0 invert opacity-90 mb-8" />
-                    
-                    <div className="flex items-center gap-3 p-4 rounded-3xl bg-blue-600 shadow-xl shadow-blue-600/20 border border-blue-400/20">
-                        <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md">
-                            <Store size={20} className="text-white" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-blue-100 uppercase tracking-widest leading-none mb-1">Active Profile</p>
-                            <p className="text-sm font-black text-white truncate max-w-[140px]">Merchant Hub</p>
-                        </div>
-                    </div>
-                </div>
+    const handleSwitch = async () => {
+        if (!currentUser) return
+        setSwitching(true)
+        try {
+            const nextRole = 'user' as 'user' | 'vendor'
+            await switchRole(nextRole)
+            navigate('/dashboard')
+            toast.success('\uD83D\uDC64 Switched to Personal Account')
+            onClose()
+        } catch (err) {
+            console.error('Switch error:', err)
+        } finally {
+            setSwitching(false)
+        }
+    }
 
-                {/* Nav */}
-                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
-                    {navItems.map((item) => (
-                        <NavLink
-                            key={item.to}
-                            to={item.to}
-                            end={item.end}
+    const handleSignOut = async () => {
+        try { await signOut(); navigate('/signin') } catch (err) { console.error(err) }
+    }
+
+    return (
+        <>
+        {/* Full-screen switching overlay */}
+        {switching && createPortal(
+            <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md font-sans">
+                <div className="w-16 h-16 rounded-full border-4 border-white/10 border-t-emerald-400 animate-spin mb-6" />
+                <p className="text-white font-black text-lg tracking-tight">Switching profile…</p>
+                <p className="text-white/40 text-xs font-medium mt-1">Please wait</p>
+            </div>,
+            document.body
+        )}
+        <div className="w-64 h-[100dvh] flex flex-col bg-gradient-to-b from-slate-900 via-blue-950 to-blue-900 relative overflow-y-auto custom-scrollbar">
+            {/* Glow orbs */}
+            <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+            <div className="absolute bottom-20 -left-16 w-48 h-48 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
+
+            <div className="relative px-6 pt-7 pb-6 border-b border-white/8 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 flex items-center justify-center">
+                        <img src={Logo} alt="CrowdPay" className="w-full h-full object-contain" />
+                    </div>
+                    <span className="text-xl font-black text-white tracking-tight">
+                        Crowd<span className="text-emerald-400">Pay</span>
+                    </span>
+                </div>
+                <button onClick={onClose} className="lg:hidden w-8 h-8 rounded-lg bg-white/8 flex items-center justify-center">
+                    <X size={15} className="text-white/60" />
+                </button>
+            </div>
+
+            {/* Nav */}
+            <nav className="relative flex-1 px-4 py-4 overflow-y-auto">
+                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.1em] px-2 mb-2.5">Merchant Menu</p>
+                <div className="flex flex-col gap-1">
+                    {navItems.map(item => (
+                        <NavLink key={item.to + item.label} to={item.to} end={item.end}
                             onClick={onClose}
-                            className={({ isActive }) => `
-                                group flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-300
-                                ${isActive 
-                                    ? 'bg-white/5 text-white border border-white/10 shadow-lg' 
-                                    : 'text-white/40 hover:text-white hover:bg-white/2'}
-                            `}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                                    'group-hover:scale-110'
-                                }`}>
-                                    <item.icon size={18} />
-                                </div>
-                                <span className="text-[13px] font-bold tracking-tight">{item.label}</span>
-                            </div>
-                            {item.badge && (
-                                <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-black shadow-lg shadow-blue-600/20">
-                                    {item.badge}
-                                </span>
+                            className={({ isActive }) =>
+                                `flex items-center gap-3 px-3 py-3 rounded-2xl transition-all ${isActive
+                                    ? 'bg-white/12 border border-white/15 shadow-inner shadow-black/20'
+                                    : 'hover:bg-white/5 border border-transparent'
+                                }`
+                            }>
+                            {({ isActive }) => (
+                                <>
+                                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isActive ? 'bg-gradient-to-br from-emerald-600 to-teal-700 shadow-lg' : 'bg-white/7'}`}>
+                                        <item.icon size={17} className={isActive ? 'text-white' : 'text-white/45'} />
+                                        {/* Dot badge on icon */}
+                                        {item.badge && !isActive && (
+                                            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-slate-900 flex items-center justify-center text-[9px] font-black text-white">
+                                                {item.badge > 9 ? '9+' : item.badge}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className={`flex-1 text-[13px] font-${isActive ? 'bold' : 'medium'} ${isActive ? 'text-white' : 'text-white/50'}`}>
+                                        {item.label}
+                                    </span>
+                                    {/* Count badge on right */}
+                                    {item.badge && isActive && (
+                                        <span className="text-[10px] font-black bg-red-500 text-white rounded-full px-1.5 py-0.5 min-w-[20px] text-center shadow-lg shadow-red-500/20">
+                                            {item.badge > 99 ? '99+' : item.badge}
+                                        </span>
+                                    )}
+                                </>
                             )}
                         </NavLink>
                     ))}
-                </nav>
+                </div>
+            </nav>
 
-                {/* Footer Profile */}
-                <div className="p-6 mt-auto space-y-4">
-                    <div className="p-5 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-                        
-                        <div className="relative flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                                <ShieldCheck size={20} className="text-white" />
+            {/* Stats + User + signout */}
+            <div className="relative px-5 pb-5 pt-4 border-t border-white/8 bg-white/2 backdrop-blur-md">
+                
+                {/* Integrated Role Switcher (Professional Dropdown) */}
+                {currentUser && (
+                    <div className="mb-4 relative" ref={roleSelectRef}>
+                        {/* Dropdown Menu */}
+                        {showRoleSelect && (
+                            <div className="absolute bottom-full left-0 right-0 mb-2 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <p className="px-5 py-3 text-[10px] font-black text-white/30 uppercase tracking-widest border-b border-white/5 bg-white/2">Switch Account Profile</p>
+                                
+                                <button 
+                                    disabled={switching}
+                                    onClick={() => {
+                                        if (currentRole !== 'user') handleSwitch();
+                                        setShowRoleSelect(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-5 py-4 hover:bg-white/5 transition-colors text-left border-b border-white/5 disabled:opacity-50 ${currentRole === 'user' ? 'bg-blue-600/10' : ''}`}
+                                >
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${currentRole === 'user' ? 'bg-blue-600 shadow-lg' : 'bg-white/10'}`}>
+                                        <UserIcon size={14} className="text-white" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[11px] font-black text-white uppercase">Personal Profile</p>
+                                        <p className="text-[9px] text-white/40 font-bold uppercase tracking-tight">{currentUser.displayName || 'CrowdPay User'}</p>
+                                    </div>
+                                    {currentRole === 'user' && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                                </button>
+
+                                <button 
+                                    disabled={switching}
+                                    onClick={() => {
+                                        setShowRoleSelect(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-5 py-4 transition-colors text-left disabled:opacity-50 ${currentRole === 'vendor' ? 'bg-emerald-600/10' : 'hover:bg-white/5 border-t border-white/5'}`}
+                                >
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${currentRole === 'vendor' ? 'bg-emerald-600 shadow-lg' : 'bg-white/10'}`}>
+                                        <Store size={14} className="text-white" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[11px] font-black text-white uppercase">{vendorName || 'Business Profile'}</p>
+                                        <p className="text-[9px] text-emerald-400/60 font-black uppercase tracking-widest">Merchant Center</p>
+                                    </div>
+                                    {currentRole === 'vendor' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                                </button>
                             </div>
-                            <div className="min-w-0">
-                                <p className="text-xs font-black text-white truncate tracking-tight">{userProfile?.fullName}</p>
-                                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Verified Vendor</p>
-                            </div>
-                        </div>
+                        )}
 
                         <button 
-                            onClick={handleSwitch}
-                            className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-all group/btn"
+                            onClick={() => setShowRoleSelect(!showRoleSelect)}
+                            className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/8 transition-all group"
                         >
-                            <div className="flex items-center gap-2">
-                                <ArrowLeftRight size={14} className="text-blue-400" />
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Switch to Personal</span>
+                            <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-105 ${
+                                    currentRole === 'vendor' ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'
+                                }`}>
+                                    {currentRole === 'vendor' ? <Store size={18} className="text-white" /> : <UserIcon size={18} className="text-white" />}
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-0.5">Currently Using</p>
+                                    <p className="text-[12px] font-black text-emerald-400 uppercase tracking-tight">Merchant Account</p>
+                                </div>
                             </div>
-                            <ChevronRight size={14} className="text-white/40 group-hover/btn:translate-x-1 transition-transform" />
+                            <ArrowRightLeft size={12} className="text-white/20 group-hover:text-white/50 transition-colors" />
                         </button>
                     </div>
+                )}
 
-                    <button 
-                        onClick={() => signOut()}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[11px] font-black uppercase tracking-widest hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition-all active:scale-95"
-                    >
+                <div className="flex items-center gap-3 bg-white/7 border border-white/10 rounded-2xl px-4 py-3 mb-3 hover:bg-white/10 transition-colors cursor-pointer group">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-emerald-500/30 shrink-0 capitalize group-hover:scale-105 transition-transform">
+                        {currentUser?.displayName?.charAt(0) || 'U'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-white font-bold text-[13px] truncate capitalize">{currentUser?.displayName || 'Merchant'}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                            <p className="text-emerald-400 text-[10px] font-black uppercase tracking-wider">Verified Vendor</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button onClick={() => setConfirmSignOut(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 border border-white/20 text-white/90 text-[11px] font-black uppercase tracking-widest hover:text-white hover:bg-white/20 hover:border-white/30 transition-all active:scale-95">
                         <LogOut size={14} /> Sign out
-                    </button>
+                </button>
+
+                {confirmSignOut && createPortal(
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 font-sans">
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setConfirmSignOut(false)} />
+                        <div className="relative bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 border border-slate-100">
+                             <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6">
+                                 <LogOut size={32} className="text-red-500 ml-1" />
+                             </div>
+                             <h3 className="text-2xl font-black text-slate-900 mb-2 text-center tracking-tight">Sign Out</h3>
+                             <p className="text-sm text-slate-500 font-medium mb-8 text-center leading-relaxed">Are you sure you want to log out of your CrowdPay account?</p>
+                             <div className="flex flex-col gap-3">
+                                 <button onClick={handleSignOut} className="w-full py-4 rounded-2xl bg-red-600 text-white font-black text-[15px] hover:bg-red-700 shadow-lg shadow-red-600/20 transition-all active:scale-95">Yes, sign out</button>
+                                 <button onClick={() => setConfirmSignOut(false)} className="w-full py-4 rounded-2xl bg-slate-50 text-slate-700 font-bold text-[15px] hover:bg-slate-100 transition-colors">Cancel</button>
+                             </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+            </div>
+
+        </div>
+        </>
+    )
+}
+
+export default function VendorSidebar({ isOpen, onClose }: SidebarProps) {
+    return (
+        <>
+            <div className="hidden lg:flex shrink-0">
+                <SidebarContent onClose={onClose} />
+            </div>
+            <div className={`lg:hidden fixed inset-0 z-50 flex transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                <div onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+                <div className={`relative z-10 h-full transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <SidebarContent onClose={onClose} />
                 </div>
             </div>
-        </aside>
+        </>
     )
 }

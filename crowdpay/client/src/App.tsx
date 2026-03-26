@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Sidebar from './components/Sidebar'
 import VendorSidebar from './components/VendorSidebar'
@@ -16,16 +16,23 @@ import SignUpPage from './pages/auth/SignUpPage'
 import Marketplace from './pages/Marketplace'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
-import VendorDashboard from './pages/vendor/VendorDashboard'
+import VendorOverview from './pages/vendor/VendorOverview'
+import VendorProducts from './pages/vendor/VendorProducts'
+import VendorOrders from './pages/vendor/VendorOrders'
+import VendorPayouts from './pages/vendor/VendorPayouts'
+import VendorSettings from './pages/vendor/VendorSettings'
+import VendorKyc from './pages/vendor/VendorKyc'
+import VendorProfilePage from './pages/vendor/VendorProfilePage'
 import InvitePage from './pages/InvitePage'
 import './index.css'
 
 /* ── Authenticated app shell (sidebar + inner pages) ─────────────────── */
 function AppShell() {
-    const { currentUser, userProfile } = useAuth()
+    const { currentUser } = useAuth()
     const [sidebarOpen, setSidebarOpen] = useState<boolean>(false)
     const [onboardingOpen, setOnboardingOpen] = useState(false)
-    const isVendorMode = userProfile?.currentRole === 'vendor'
+    const location = useLocation()
+    const isVendorMode = location.pathname.startsWith('/dashboard/vendor')
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
@@ -37,15 +44,17 @@ function AppShell() {
                 />
             )}
 
-            {isVendorMode ? (
-                <VendorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-            ) : (
-                <Sidebar 
-                    isOpen={sidebarOpen} 
-                    onClose={() => setSidebarOpen(false)} 
-                    onOpenOnboarding={() => setOnboardingOpen(true)} 
-                />
-            )}
+            <div key={isVendorMode ? 'vendor' : 'user'} className="animate-fade-in z-50 lg:shrink-0 h-full">
+                {isVendorMode ? (
+                    <VendorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+                ) : (
+                    <Sidebar 
+                        isOpen={sidebarOpen} 
+                        onClose={() => setSidebarOpen(false)} 
+                        onOpenOnboarding={() => setOnboardingOpen(true)} 
+                    />
+                )}
+            </div>
 
             <main className="flex-1 overflow-y-auto">
                 <Routes>
@@ -57,11 +66,13 @@ function AppShell() {
                     <Route path="/marketplace" element={<Marketplace onMenuClick={() => setSidebarOpen(true)} />} />
                     
                     {/* Vendor Routes */}
-                    <Route path="/vendor" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
-                    <Route path="/vendor/products" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
-                    <Route path="/vendor/orders" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
-                    <Route path="/vendor/payouts" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
-                    <Route path="/vendor/settings" element={<VendorDashboard onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor" element={<VendorOverview onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/products" element={<VendorProducts onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/orders" element={<VendorOrders onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/payouts" element={<VendorPayouts onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/settings" element={<VendorSettings onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/kyc" element={<VendorKyc onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/profile" element={<VendorProfilePage onMenuClick={() => setSidebarOpen(true)} />} />
                 </Routes>
             </main>
 

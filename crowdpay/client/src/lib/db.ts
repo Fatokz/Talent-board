@@ -1,10 +1,11 @@
-import { db } from './firebase';
+import { db, storage } from './firebase';
 import { 
     collection, getDocs, query, where, addDoc,
     onSnapshot, doc, updateDoc, 
     getDoc, serverTimestamp,
     arrayUnion, setDoc
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface Product {
     id: string;
@@ -13,6 +14,7 @@ export interface Product {
     price: number;
     description: string;
     image: string;
+    images?: string[]; // Array of extra or all image URLs for gallery
     vendorId: string;
     status: 'active' | 'out_of_stock' | 'deleted';
     createdAt: number;
@@ -127,6 +129,8 @@ export interface VendorProfile {
     accountNumber: string;
     accountName: string;
     rating: number;
+    ratingCount?: number;
+    voters?: string[];
     verified: boolean;
     walletBalance: number; // For actual earnings
     pendingBalance: number; // For money in active jars
@@ -479,6 +483,8 @@ export const createVendorProfile = async (uid: string, data: Omit<VendorProfile,
         ...data,
         id: uid,
         rating: 5.0,
+        ratingCount: 1,
+        voters: [],
         verified: false,
         walletBalance: 0,
         pendingBalance: 0,
@@ -624,7 +630,9 @@ export const deleteProduct = async (productId: string) => {
 
 export const subscribeToAllProducts = (callback: (products: Product[]) => void) => {
     const productsRef = collection(db, 'products');
-    const q = query(productsRef, where('status', '==', 'active'));
+    // Fetch both active and out_of_stock; exclude deleted server-side isn't possible with OR in basic Firestore,
+    // so we filter client-side after getting everything non-deleted.
+    const q = query(productsRef, where('status', 'in', ['active', 'out_of_stock']));
     return onSnapshot(q, snap => {
         callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
     });
@@ -640,4 +648,42 @@ export const subscribeToAllVendors = (callback: (vendors: VendorProfile[]) => vo
 export const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     const docRef = doc(db, 'orders', orderId);
     await updateDoc(docRef, { status });
+};
+
+// ─── MARKETPLACE EXPANSION ───────────────────────────────────────────────────
+
+export const rateVendor = async (vendorId: string, newRating: number, userId: string) => {
+    const vendorRef = doc(db, 'vendorProfiles', vendorId);
+    const snap = await getDoc(vendorRef);
+    if (!snap.exists()) throw new Error('Vendor not found');
+    
+    const data = snap.data() as VendorProfile;
+    const currentRating = data.rating || 5.0;
+    const currentCount = data.ratingCount || 1;
+    const voters = data.voters || [];
+
+    if (voters.includes(userId)) {
+        throw new Error('You have already rated this merchant');
+    }
+
+    const newCount = currentCount + 1;
+    const computedRating = ((currentRating * currentCount) + newRating) / newCount;
+
+    await updateDoc(vendorRef, {
+        rating: Number(computedRating.toFixed(1)),
+        ratingCount: newCount,
+        voters: arrayUnion(userId)
+    });
+};
+
+export const uploadImage = async (file: File, folderPath: string): Promise<string> => {
+    // Generate a unique filename using timestamp
+    const uniqueName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+    const storageRef = ref(storage, `${folderPath}/${uniqueName}`);
+    
+    // Upload the physical file to the Firebase Storage bucket
+    await uploadBytes(storageRef, file);
+    
+    // Retrieve the public, secure download URL
+    return await getDownloadURL(storageRef);
 };

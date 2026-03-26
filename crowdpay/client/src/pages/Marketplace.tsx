@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Store, ShieldCheck, Star, MessageSquare, ShoppingCart, Search, Menu } from 'lucide-react'
+import { Store, ShieldCheck, Star, Search, Menu } from 'lucide-react'
 import { subscribeToAllProducts, subscribeToAllVendors, Product, VendorProfile } from '../lib/db'
 import VendorChatModal from '../components/VendorChatModal'
 import CreateJarModal from '../components/CreateJarModal'
+import ProductDetailsModal from '../components/ProductDetailsModal'
+import VendorProfileModal from '../components/VendorProfileModal'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
 
@@ -12,7 +14,11 @@ export default function Marketplace({ onMenuClick }: Props) {
     const { currentUser } = useAuth()
     const [chatVendor, setChatVendor] = useState<{ id: string; name: string } | null>(null)
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+    const [isProductDetailsOpen, setIsProductDetailsOpen] = useState(false)
+    const [vendorProfileId, setVendorProfileId] = useState<string | null>(null)
     const [isCreateJarOpen, setIsCreateJarOpen] = useState(false)
+    const [jarTargetAmount, setJarTargetAmount] = useState<number | undefined>(undefined)
+    
     const [search, setSearch] = useState('')
     const [category, setCategory] = useState('All')
     const [products, setProducts] = useState<Product[]>([])
@@ -42,7 +48,7 @@ export default function Marketplace({ onMenuClick }: Props) {
         return matchesSearch && matchesCat
     })
 
-    const handleShop = (product: Product) => {
+    const handleShop = (product: Product, totalAmount?: number) => {
         if (product.vendorId === currentUser?.uid) {
             toast.error("You cannot start a savings jar for your own product.", {
                 icon: '🚫',
@@ -51,7 +57,18 @@ export default function Marketplace({ onMenuClick }: Props) {
             return
         }
         setSelectedProduct(product)
+        setJarTargetAmount(totalAmount || product.price)
         setIsCreateJarOpen(true)
+    }
+
+    const openProductDetails = (product: Product) => {
+        setSelectedProduct(product)
+        setIsProductDetailsOpen(true)
+    }
+
+    const openVendorProfile = (vendorId: string | undefined, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (vendorId) setVendorProfileId(vendorId)
     }
 
     return (
@@ -139,44 +156,42 @@ export default function Marketplace({ onMenuClick }: Props) {
                         {filteredProducts.map((product) => {
                             const vendor = vendors.find(v => v.id === product.vendorId)
                         return (
-                            <div key={product.id} className="group bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-500 flex flex-col">
+                            <div 
+                                key={product.id} 
+                                onClick={() => product.status === 'active' && openProductDetails(product)} 
+                                className={`group bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden transition-all duration-500 flex flex-col ${product.status === 'active' ? 'hover:shadow-2xl hover:shadow-slate-200/60 cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
+                            >
                                 {/* Image Wrapper */}
-                                <div className="relative h-60 overflow-hidden bg-slate-100">
+                                <div className="relative h-60 overflow-hidden bg-slate-50 shrink-0">
                                     <img 
                                         src={product.image} 
                                         alt={product.name}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                        className={`w-full h-full object-cover transition-transform duration-700 ${product.status === 'active' ? 'group-hover:scale-110' : 'grayscale'}`}
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                     
+                                    {/* Category tag */}
                                     <div className="absolute top-4 left-4">
-                                        <span className="px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black text-blue-900 border border-white uppercase tracking-wider shadow-sm">
+                                        <span className="px-3 py-1 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-black text-blue-900 uppercase tracking-wider shadow-sm">
                                             {product.category}
                                         </span>
                                     </div>
 
-                                    <div className="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row gap-2 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                                        <button 
-                                            onClick={() => setChatVendor({ id: vendor?.id || '', name: vendor?.name || '' })}
-                                            className="h-10 px-3 rounded-xl bg-white text-slate-900 text-[10px] font-black flex items-center justify-center gap-2 hover:bg-blue-900 hover:text-white transition-colors shadow-lg uppercase tracking-wider grow"
-                                        >
-                                            <MessageSquare size={14} /> Chat
-                                        </button>
-                                        <button 
-                                            onClick={() => handleShop(product)}
-                                            className="h-10 px-3 rounded-xl bg-blue-900 text-white text-[10px] font-black flex items-center justify-center gap-2 hover:bg-blue-800 transition-colors shadow-lg uppercase tracking-wider grow"
-                                        >
-                                            <ShoppingCart size={14} /> Start Jar
-                                        </button>
-                                    </div>
+                                    {/* Out of Stock overlay */}
+                                    {product.status === 'out_of_stock' && (
+                                        <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center">
+                                            <span className="px-4 py-2 bg-white/95 backdrop-blur-sm rounded-full text-xs font-black text-slate-700 uppercase tracking-widest shadow-lg">
+                                                Out of Stock
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="p-7 flex-1 flex flex-col">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight group-hover:text-blue-900 transition-colors">
+                                <div className="p-7 flex-1 flex flex-col bg-white">
+                                    <div className="flex justify-between items-start mb-2 gap-4">
+                                        <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight group-hover:text-blue-900 transition-colors line-clamp-2">
                                             {product.name}
                                         </h3>
-                                        <div className="text-xl font-black text-slate-900">
+                                        <div className={`text-xl font-black shrink-0 ${product.status === 'active' ? 'text-blue-900' : 'text-slate-400 line-through'}`}>
                                             ₦{product.price.toLocaleString()}
                                         </div>
                                     </div>
@@ -186,18 +201,18 @@ export default function Marketplace({ onMenuClick }: Props) {
                                     </p>
 
                                     <div className="mt-auto pt-6 border-t border-slate-100 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                        <button onClick={(e) => openVendorProfile(vendor?.id, e)} className="flex items-center gap-3 text-left group/vendor active:scale-95 transition-transform max-w-[75%]">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover/vendor:bg-blue-50 group-hover/vendor:text-blue-600 transition-colors shrink-0">
                                                 <Store size={18} />
                                             </div>
-                                            <div>
+                                            <div className="min-w-0">
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Sold By</p>
-                                                <p className="text-xs font-bold text-slate-700">{vendor?.name}</p>
+                                                <p className="text-sm font-bold text-slate-700 truncate group-hover/vendor:text-blue-600 transition-colors">{vendor?.name || 'Unknown Store'}</p>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-amber-500">
+                                        </button>
+                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-lg text-amber-500 shrink-0">
                                             <Star size={12} className="fill-current" />
-                                            <span className="text-xs font-black">{vendor?.rating}</span>
+                                            <span className="text-xs font-black">{vendor?.rating || '5.0'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -228,19 +243,50 @@ export default function Marketplace({ onMenuClick }: Props) {
                 />
             )}
 
+            <ProductDetailsModal
+                isOpen={isProductDetailsOpen}
+                onClose={() => setIsProductDetailsOpen(false)}
+                product={selectedProduct}
+                onStartJar={(product, _, totalAmount) => {
+                    setIsProductDetailsOpen(false)
+                    handleShop(product, totalAmount)
+                }}
+                onViewStore={(vendorId) => {
+                    setIsProductDetailsOpen(false)
+                    setVendorProfileId(vendorId)
+                }}
+                onChat={(vendorId, vendorName) => {
+                    setIsProductDetailsOpen(false)
+                    setChatVendor({ id: vendorId, name: vendorName })
+                }}
+            />
+
+            <VendorProfileModal
+                isOpen={!!vendorProfileId}
+                onClose={() => setVendorProfileId(null)}
+                vendorId={vendorProfileId}
+                onProductClick={(p: Product) => {
+                    setVendorProfileId(null)
+                    setSelectedProduct(p)
+                    setIsProductDetailsOpen(true)
+                }}
+            />
+
             <CreateJarModal 
                 isOpen={isCreateJarOpen}
                 onClose={() => {
                     setIsCreateJarOpen(false)
                     setSelectedProduct(null)
+                    setJarTargetAmount(undefined)
                 }}
                 onSuccess={(id) => {
                     console.log('Jar created with product', id)
                     setIsCreateJarOpen(false)
                     setSelectedProduct(null)
+                    setJarTargetAmount(undefined)
                 }}
                 initialName={selectedProduct ? `Purchase: ${selectedProduct.name}` : ''}
-                initialGoal={selectedProduct?.price}
+                initialGoal={jarTargetAmount || selectedProduct?.price}
                 initialVendorId={selectedProduct?.vendorId}
             />
         </div>
