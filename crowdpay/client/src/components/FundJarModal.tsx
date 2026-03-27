@@ -322,9 +322,8 @@ export default function FundJarModal({ isOpen, onClose, jar, profile }: Props) {
                         {loading ? <><Loader2 size={20} className="animate-spin" /> Preparing Checkout...</> : <><CreditCard size={20} /> Proceed to Interswitch</>}
                     </button>
 
-                    {/* Developer Bypass Button */}
-                    {!import.meta.env.PROD && (
-                        <button 
+                    {/* Demo Bypass Button (Always visible for Hackathon) */}
+                    <button 
                             type="button"
                             onClick={async () => {
                                 if (!numAmount) return;
@@ -355,9 +354,8 @@ export default function FundJarModal({ isOpen, onClose, jar, profile }: Props) {
                             }}
                             className="w-full mt-2 h-10 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 text-xs font-bold hover:border-blue-500 hover:text-blue-500 transition-all flex items-center justify-center gap-2"
                         >
-                            <ShieldCheck size={14} /> Simulate Success (Dev Mode)
+                            <ShieldCheck size={14} /> Simulate Success (Demo Mode)
                         </button>
-                    )}
                     
                     <div className="mt-4 flex items-center justify-center gap-2 opacity-50">
                         <Lock size={12} className="text-slate-500" />
