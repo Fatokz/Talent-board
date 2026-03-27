@@ -204,7 +204,7 @@ export default function WithdrawalRequestModal({
                                 <button type="button" onClick={() => setDestinationType('vendor')}
                                     className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${destinationType === 'vendor' ? 'border-amber-500 bg-amber-50 text-amber-900' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
                                     <Store size={16} className={destinationType === 'vendor' ? 'text-amber-500' : ''} />
-                                    <span className="text-xs font-bold">Pay Vendor</span>
+                                    <span className="text-xs font-bold">Buy Now</span>
                                 </button>
                             </div>
                         </div>
@@ -224,7 +224,7 @@ export default function WithdrawalRequestModal({
                                     placeholder="e.g. VEND_9823XJS"
                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all font-bold text-slate-900 placeholder:text-slate-400 uppercase"
                                 />
-                                <p className="text-[10px] text-slate-500 mt-2 ml-1">The funds will skip your wallet and go straight to the vendor.</p>
+                                <p className="text-[10px] text-slate-500 mt-2 ml-1">The funds will be sent directly to the merchant to complete your purchase.</p>
                             </div>
                         )}
 
