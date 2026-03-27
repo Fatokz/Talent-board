@@ -41,15 +41,20 @@ export default function UserMessagesPanel({ isOpen, onClose }: Props) {
         return subscribeToAllVendors((vendors) => {
             const nameMap: Record<string, string> = {}
             const logoMap: Record<string, string> = {}
+            const nameToLogoMap: Record<string, string> = {} // Fallback for name-based IDs
             vendors.forEach(v => {
                 const vid = v.id.trim()
                 nameMap[vid] = v.name
                 // Check multiple possible logo fields for robustness
                 const logo = v.logo || (v as any).logoUrl || (v as any).image || (v as any).profileImage
-                if (logo) logoMap[vid] = logo
+                if (logo) {
+                    logoMap[vid] = logo
+                    nameToLogoMap[v.name.trim().toLowerCase()] = logo
+                }
             })
             setResolvedVendorNames(nameMap)
-            setResolvedVendorLogos(logoMap)
+            // Merge maps for the final logo lookup
+            setResolvedVendorLogos({ ...logoMap, ...nameToLogoMap })
         })
     }, [])
 
@@ -141,15 +146,16 @@ export default function UserMessagesPanel({ isOpen, onClose }: Props) {
                                                 className="w-full flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-900/5 transition-all text-left group relative overflow-hidden"
                                             >
                                                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-slate-50 border border-slate-100 flex items-center justify-center text-blue-900 shrink-0 group-hover:scale-105 transition-transform duration-300 overflow-hidden">
-                                                    {resolvedVendorLogos[convo.vendorId.trim()] ? (
-                                                        <img 
-                                                            src={resolvedVendorLogos[convo.vendorId.trim()]} 
-                                                            alt="" 
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <Store size={22} />
-                                                    )}
+                                                    {(() => {
+                                                        const vid = convo.vendorId.trim()
+                                                        const vname = (resolvedVendorNames[vid] || convo.vendorName || '').trim().toLowerCase()
+                                                        const logo = resolvedVendorLogos[vid] || resolvedVendorLogos[vname]
+                                                        return logo ? (
+                                                            <img src={logo} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <Store size={22} />
+                                                        )
+                                                    })()}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between mb-0.5">

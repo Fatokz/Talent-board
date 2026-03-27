@@ -107,15 +107,18 @@ export default function VendorChatModal({
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner overflow-hidden">
-                                {vendorProfile?.logo ? (
-                                    <img 
-                                        src={vendorProfile.logo} 
-                                        alt="" 
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <Store size={22} className="text-white/90" />
-                                )}
+                                {(() => {
+                                    const logo = vendorProfile?.logo || (vendorProfile as any)?.logoUrl || (vendorProfile as any)?.image || (vendorProfile as any)?.profileImage;
+                                    return logo ? (
+                                        <img 
+                                            src={logo} 
+                                            alt="" 
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <Store size={22} className="text-white/90" />
+                                    )
+                                })()}
                             </div>
                             <div className="min-w-0">
                                 <h3 className="font-black text-lg tracking-tight truncate leading-tight">{otherUserName}</h3>
