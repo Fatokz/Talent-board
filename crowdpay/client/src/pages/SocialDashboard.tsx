@@ -95,7 +95,7 @@ function JarCard({ jar, onWithdraw, onActivate, onContribute }: { jar: JarTempla
                 {jar.goalReached && onWithdraw && (
                     <button onClick={() => onWithdraw(jar)}
                         className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white text-[13px] font-bold shadow-lg shadow-emerald-500/30 hover:shadow-xl transition-all">
-                        Request Withdrawal <ChevronRight size={14} />
+                        {jar.productId ? 'Buy Now' : 'Request Withdrawal'} <ChevronRight size={14} />
                     </button>
                 )}
 
@@ -204,7 +204,8 @@ export default function SocialDashboard({ onMenuClick }: Props) {
         color: 'from-blue-600 to-blue-500',
         goalReached: jar.raised >= jar.goal && jar.goal > 0 && jar.raised > 0 && jar.status !== 'PAYOUT_COMPLETED',
         jarType: jar.jarType,
-        contributionAmount: jar.contributionAmount
+        contributionAmount: jar.contributionAmount,
+        productId: jar.productId
     }));
 
     const activeJars = mappedJars;
@@ -369,7 +370,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                         </div>
                         <button onClick={() => setWithdrawalJar(goalReached)}
                             className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-blue-900 text-sm font-black shadow-lg hover:-translate-y-0.5 transition-transform whitespace-nowrap">
-                            Request Withdrawal <ChevronRight size={14} />
+                            {goalReached.productId ? 'Buy Now' : 'Request Withdrawal'} <ChevronRight size={14} />
                         </button>
                     </div>
                 )}

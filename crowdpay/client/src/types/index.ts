@@ -17,6 +17,7 @@ export interface JarTemplate {
     creatorId?: string
     jarType: 'solo' | 'collaborative'
     contributionAmount?: number
+    productId?: string
 }
 
 export interface GroupMember {
