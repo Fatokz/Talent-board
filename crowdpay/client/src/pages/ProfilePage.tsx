@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
     ShieldCheck, User, MapPin, Phone, Hash, AlertTriangle, CheckCircle, RefreshCcw, Menu, Building, CreditCard, Lock, Loader2
 } from 'lucide-react'
@@ -34,6 +34,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
     const [confirmPin, setConfirmPin] = useState('')
     const [pinLoading, setPinLoading] = useState(false)
     const [isChangeMode, setIsChangeMode] = useState(false)
+    const isInitialized = useRef(false)
 
     // Fetch banks
     useEffect(() => {
@@ -61,12 +62,13 @@ export default function ProfilePage({ onMenuClick }: Props) {
         if (!currentUser) return
         const unsub = subscribeToUserDoc(currentUser.uid, (data) => {
             setProfile(data)
-            if (data) {
-                if (data.nin && !nin) setNin(data.nin)
-                if (data.phoneNumber && !phone) setPhone(data.phoneNumber)
-                if (data.address && !address) setAddress(data.address)
-                if (data.bankCode && !bankCode) setBankCode(data.bankCode)
-                if (data.accountNumber && !accountNumber) setAccountNumber(data.accountNumber)
+            if (data && !isInitialized.current) {
+                if (data.nin) setNin(data.nin)
+                if (data.phoneNumber) setPhone(data.phoneNumber)
+                if (data.address) setAddress(data.address)
+                if (data.bankCode) setBankCode(data.bankCode)
+                if (data.accountNumber) setAccountNumber(data.accountNumber)
+                isInitialized.current = true
             }
             setLoading(false)
         })

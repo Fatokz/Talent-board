@@ -44,8 +44,9 @@ export default function Marketplace({ onMenuClick }: Props) {
     const filteredProducts = products.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
                              p.description.toLowerCase().includes(search.toLowerCase())
-        const matchesCat = category === 'All' || p.category.includes(category) // Using includes to handle "Electronics & Gadgets" vs "Electronics"
-        return matchesSearch && matchesCat
+        const matchesCat = category === 'All' || p.category.includes(category)
+        const isSelf = p.vendorId === currentUser?.uid
+        return matchesSearch && matchesCat && !isSelf
     })
 
     const handleShop = (product: Product, totalAmount?: number) => {

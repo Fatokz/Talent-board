@@ -1,11 +1,10 @@
-import { db, storage } from './firebase';
+import { db } from './firebase';
 import { 
     collection, getDocs, query, where, addDoc,
     onSnapshot, doc, updateDoc, 
     getDoc, serverTimestamp,
     arrayUnion, setDoc
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface Product {
     id: string;
@@ -676,14 +675,3 @@ export const rateVendor = async (vendorId: string, newRating: number, userId: st
     });
 };
 
-export const uploadImage = async (file: File, folderPath: string): Promise<string> => {
-    // Generate a unique filename using timestamp
-    const uniqueName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-    const storageRef = ref(storage, `${folderPath}/${uniqueName}`);
-    
-    // Upload the physical file to the Firebase Storage bucket
-    await uploadBytes(storageRef, file);
-    
-    // Retrieve the public, secure download URL
-    return await getDownloadURL(storageRef);
-};

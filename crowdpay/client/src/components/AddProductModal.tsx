@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { X, Package, DollarSign, Tag, Plus, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { createProduct, uploadImage } from '../lib/db'
+import { createProduct } from '../lib/db'
+import { uploadToCloudinary } from '../lib/cloudinary'
 
 interface Props {
     isOpen: boolean
@@ -51,7 +52,7 @@ export default function AddProductModal({ isOpen, onClose, vendorId }: Props) {
         try {
             // Upload physical image files in parallel
             const uploadedUrls = await Promise.all(
-                imageFiles.map(file => uploadImage(file, 'products'))
+                imageFiles.map(file => uploadToCloudinary(file))
             )
 
             await createProduct({

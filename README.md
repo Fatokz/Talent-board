@@ -30,13 +30,14 @@ CrowdPay is a high-impact digital product designed to revolutionize group saving
 - **Frontend Architecture**: Engineered the core React component library and TypeScript design system.
 - **Interswitch Integration**: Developed the serverless middleware for NIN Verification and Interswitch WebPAY hooks.
 - **Merchant Hub Ecosystem**: Built the dual-role profile switcher and automated vendor payout orchestration.
-- **UI/UX Excellence**: Implemented the premium dark-mode aesthetic and glassmorphism components.
+- **UI/UX Excellence**: Implemented the premium light-mode aesthetic and glassmorphism components.
+- **Cloudinary**: Integrated Cloudinary for optimized media delivery.
 
 ### Isaac Okeke
 **Role**: Backend & Database Architect / Product Researcher
 - **Database Schema**: Designed the complex Firestore document structure for Jars, Ajo Rotations, and Transaction Ledgers.
 - **Governance Logic**: Architected the unanimous voting protocol and withdrawal state machine.
-- **Market Research**: Conducted research on communal savings bottlenecks in the Nigerian landscape.
+- **Vendor**: Implemented the Merchant Inventory system and 
 - **Quality Assurance**: Managed end-to-end testing for the Ajo rotation reset and payout automation.
 
 ## 🧪 Installation & Local Setup

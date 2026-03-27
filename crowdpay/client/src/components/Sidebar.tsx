@@ -107,7 +107,7 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
             </div>,
             document.body
         )}
-        <div className="w-64 h-[100dvh] flex flex-col bg-gradient-to-b from-slate-900 via-blue-950 to-blue-900 relative overflow-y-auto custom-scrollbar">
+        <div className="w-64 h-[100dvh] flex flex-col bg-gradient-to-b from-slate-900 via-blue-950 to-blue-900 relative overflow-hidden custom-scrollbar">
             {/* Glow orbs */}
             <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
             <div className="absolute bottom-20 -left-16 w-48 h-48 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
