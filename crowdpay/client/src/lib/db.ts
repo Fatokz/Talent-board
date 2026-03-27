@@ -47,6 +47,8 @@ export interface Jar {
     createdAt: number;
     targetDays?: number; // How many days the jar is active for
     jarType: 'solo' | 'collaborative';
+    productId?: string; // Links to a specific product if created via Marketplace
+    productName?: string; // Denormalized name for merchant convenience
 
     // --- Ajo (Rotating Savings) specific fields ---
     rotationMethod?: 'creator' | 'random' | 'join-order'; // How payout order is determined
@@ -190,6 +192,20 @@ export const getUserJars = async (userId: string): Promise<Jar[]> => {
 export const subscribeToUserJars = (userId: string, callback: (jars: Jar[]) => void) => {
     const jarsRef = collection(db, 'jars');
     const q = query(jarsRef, where('members', 'array-contains', userId));
+
+    return onSnapshot(q, (snapshot) => {
+        const jars = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as Jar[];
+        callback(jars);
+    });
+};
+
+// 2c. Realtime Listener for Vendor Jars (monitoring)
+export const subscribeToVendorJars = (vendorId: string, callback: (jars: Jar[]) => void) => {
+    const jarsRef = collection(db, 'jars');
+    const q = query(jarsRef, where('vendorId', '==', vendorId));
 
     return onSnapshot(q, (snapshot) => {
         const jars = snapshot.docs.map(doc => ({
@@ -758,5 +774,90 @@ export const rateVendor = async (vendorId: string, newRating: number, userId: st
         ratingCount: newCount,
         voters: arrayUnion(userId)
     });
+};
+
+export const payFromWallet = async (
+    userId: string,
+    vendorId: string,
+    productId: string,
+    productName: string,
+    pricePerUnit: number,
+    quantity: number
+) => {
+    const totalAmount = pricePerUnit * quantity;
+
+    // 1. Check user balance
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) throw new Error('User account not found');
+    
+    const userData = userSnap.data() as UserProfile;
+    const currentBalance = userData.walletBalance || 0;
+    
+    if (currentBalance < totalAmount) {
+        throw new Error(`Insufficient balance. You need ₦${(totalAmount - currentBalance).toLocaleString()} more.`);
+    }
+
+    // 2. Calculate Fees (200 Naira fixed + 5% commission)
+    const fixedFee = 200;
+    const commissionPct = 0.05;
+    const commission = totalAmount * commissionPct;
+    const totalDeductions = fixedFee + commission;
+    const netToVendor = Math.max(0, totalAmount - totalDeductions);
+
+    // 3. Perform Updates (Atomic sequence)
+    // Decrement User Balance
+    await updateDoc(userRef, {
+        walletBalance: currentBalance - totalAmount
+    });
+
+    // Increment Vendor Balance
+    const vendorRef = doc(db, 'vendorProfiles', vendorId);
+    const vendorSnap = await getDoc(vendorRef);
+    if (vendorSnap.exists()) {
+        const vData = vendorSnap.data() as VendorProfile;
+        await updateDoc(vendorRef, {
+            walletBalance: (vData.walletBalance || 0) + netToVendor
+        });
+    }
+
+    // Create Order Record
+    const ordersRef = collection(db, 'orders');
+    const orderDoc = await addDoc(ordersRef, {
+        productId,
+        productName,
+        buyerId: userId,
+        buyerName: userData.fullName,
+        vendorId,
+        amount: totalAmount,
+        quantity,
+        status: 'pending',
+        createdAt: Date.now()
+    });
+
+    // Record User Transaction (Debit)
+    const txnsRef = collection(db, 'transactions');
+    await addDoc(txnsRef, {
+        uid: userId,
+        type: 'purchase',
+        amount: -totalAmount,
+        orderId: orderDoc.id,
+        description: `Direct purchase: ${quantity}x ${productName}`,
+        timestamp: serverTimestamp(),
+        status: 'completed'
+    });
+
+    // Record Vendor Transaction (Credit)
+    await addDoc(txnsRef, {
+        uid: vendorId,
+        type: 'vendor_sale',
+        amount: netToVendor,
+        orderId: orderDoc.id,
+        description: `Sale: ${quantity}x ${productName} (Less Fees: ₦${totalDeductions.toFixed(2)})`,
+        timestamp: serverTimestamp(),
+        status: 'completed'
+    });
+
+    return { success: true, orderId: orderDoc.id };
 };
 

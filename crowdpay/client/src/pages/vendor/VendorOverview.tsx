@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { 
     TrendingUp, Menu, Package,
-    Plus, Users, DollarSign,
+    Plus, Users, Wallet,
     ShieldCheck, Clock, ShoppingCart, MessageSquare,
     AlertTriangle, Check
 } from 'lucide-react'
@@ -11,7 +11,8 @@ import {
     subscribeToVendorOrders, Order,
     subscribeToVendorProducts, Product,
     subscribeToVendorConversations,
-    updateVendorProfile
+    updateVendorProfile,
+    subscribeToVendorJars
 } from '../../lib/db'
 import AddProductModal from '../../components/AddProductModal'
 import { Link, useNavigate } from 'react-router-dom'
@@ -59,11 +60,16 @@ export default function VendorOverview({ onMenuClick }: Props) {
             setUnreadCount(convos.reduce((acc, c) => acc + (c.vendorUnread || 0), 0))
         })
 
+        const unsubJars = subscribeToVendorJars(currentUser.uid, (jars) => {
+            setStats(prev => ({ ...prev, activeJars: jars.length }))
+        })
+
         return () => {
             unsubProfile()
             unsubOrders()
             unsubProducts()
             unsubConvos()
+            unsubJars()
         }
     }, [currentUser])
 
@@ -141,12 +147,15 @@ export default function VendorOverview({ onMenuClick }: Props) {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8 sm:mb-10">
                     {[
-                        { label: 'Total Earnings', value: `₦${stats.totalSales.toLocaleString()}`, icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
-                        { label: 'Active Jars', value: stats.activeJars, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                        { label: 'Pending Orders', value: stats.pendingOrders, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+                        { label: 'Total Earnings', value: `₦${stats.totalSales.toLocaleString()}`, icon: Wallet, color: 'text-blue-600', bg: 'bg-blue-50' },
+                        { label: 'Product Jars', value: stats.activeJars, icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50', link: '/dashboard/vendor/jars' },
+                        { label: 'Pending Orders', value: stats.pendingOrders, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', link: '/dashboard/vendor/orders' },
                         { label: 'Merchant Rating', value: stats.rating, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                     ].map((stat, i) => (
                         <div key={i} className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-slate-200 shadow-sm relative group">
+                            {stat.link ? (
+                                <Link to={stat.link} className="absolute inset-0 z-10" />
+                            ) : null}
                             <div className={`${stat.bg} ${stat.color} w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center mb-3 sm:mb-4`}>
                                 <stat.icon size={16} className="sm:w-5 sm:h-5" />
                             </div>
