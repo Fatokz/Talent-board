@@ -281,7 +281,7 @@ export default function SocialDashboard({ onMenuClick }: Props) {
                 {/* Welcome */}
                 <div className="mb-5 sm:mb-7">
                     <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1">
-                        Welcome, <span className="bg-gradient-to-r from-blue-900 to-emerald-500 bg-clip-text text-transparent">{currentUser?.displayName?.split(' ')[0] || 'Member'}</span>
+                        Welcome, <span className="bg-gradient-to-r from-blue-900 to-emerald-500 bg-clip-text text-transparent">{kycProfile?.fullName?.split(' ')[0] || currentUser?.displayName?.split(' ')[0] || 'Member'}</span>
                     </h1>
                     <p className="text-[11px] sm:text-sm text-slate-500 leading-tight">Your collective wallets are secure. All jars are protected by unanimous consensus.</p>
                 </div>

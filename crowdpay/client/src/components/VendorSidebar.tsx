@@ -17,7 +17,7 @@ interface SidebarProps {
 
 function SidebarContent({ onClose }: { onClose: () => void }) {
     const navigate = useNavigate()
-    const { currentUser, signOut, switchRole } = useAuth()
+    const { currentUser, userProfile, signOut, switchRole } = useAuth()
     const [pendingOrders, setPendingOrders] = useState(0)
     const [vendorName, setVendorName] = useState<string>('')
     const [switching, setSwitching] = useState(false)
@@ -189,7 +189,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-[11px] font-black text-white uppercase">Personal Profile</p>
-                                        <p className="text-[9px] text-white/40 font-bold uppercase tracking-tight">{currentUser.displayName || 'CrowdPay User'}</p>
+                                        <p className="text-[9px] text-white/40 font-bold uppercase tracking-tight">{userProfile?.fullName || currentUser.displayName || 'CrowdPay User'}</p>
                                     </div>
                                     {currentRole === 'user' && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
                                 </button>
@@ -233,12 +233,12 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                     </div>
                 )}
 
-                <div className="flex items-center gap-3 bg-white/7 border border-white/10 rounded-2xl px-4 py-3 mb-3 hover:bg-white/10 transition-colors cursor-pointer group">
+                <div className="flex items-center gap-3 bg-white/7 border border-white/10 rounded-2xl px-4 py-3 mb-3 hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => navigate('/dashboard/vendor/profile')}>
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-emerald-500/30 shrink-0 capitalize group-hover:scale-105 transition-transform">
-                        {currentUser?.displayName?.charAt(0) || 'U'}
+                        {userProfile?.fullName?.charAt(0) || currentUser?.displayName?.charAt(0) || 'U'}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-white font-bold text-[13px] truncate capitalize">{currentUser?.displayName || 'Merchant'}</p>
+                        <p className="text-white font-bold text-[13px] truncate capitalize">{userProfile?.fullName || currentUser?.displayName || 'Merchant'}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
                             <p className="text-emerald-400 text-[10px] font-black uppercase tracking-wider">Verified Vendor</p>
