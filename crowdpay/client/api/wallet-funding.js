@@ -35,11 +35,18 @@ export default async function handler(req, res) {
       const payItemId = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX276001';
       const currency = '566';
       const protocol = req.headers.host.includes('localhost') ? 'http' : 'https';
-      const siteRedirectUrl = `${protocol}://${req.headers.host}/dashboard?wallet_funded=${txnRef}&amount=${amount}`;
+      // Simplify redirect URL to avoid hash mismatches with query params
+      const siteRedirectUrl = `${protocol}://${req.headers.host}/dashboard`;
+      
       const macKey = process.env.INTERSWITCH_MAC_KEY;
-      const hash = crypto.createHash('sha512')
-        .update(`${txnRef}${productId}${payItemId}${amountInKobo}${siteRedirectUrl}${macKey || 'TEST_MAC_KEY'}`)
-        .digest('hex');
+      const stringToHash = `${txnRef}${productId}${payItemId}${amountInKobo}${siteRedirectUrl}${macKey || 'TEST_MAC_KEY'}`;
+      
+      console.log('--- INTERSWITCH INITIATION ---');
+      console.log('TxnRef:', txnRef);
+      console.log('SiteURL:', siteRedirectUrl);
+      console.log('Hash String:', stringToHash);
+      
+      const hash = crypto.createHash('sha512').update(stringToHash).digest('hex');
 
       return res.status(200).json({ txnRef, productId, payItemId, amount: amountInKobo, currency, siteRedirectUrl, hash, email, uid });
     } catch {

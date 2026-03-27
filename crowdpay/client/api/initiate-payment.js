@@ -25,18 +25,17 @@ export default async function handler(req, res) {
     
     // Determine the Redirect URL after payment completion
     const protocol = req.headers.host.includes('localhost') ? 'http' : 'https';
-    const siteRedirectUrl = `${protocol}://${req.headers.host}/dashboard?type=jar&jarId=${jarId}`;
+    // Simplified redirect URL
+    const siteRedirectUrl = `${protocol}://${req.headers.host}/dashboard`;
     
     const macKey = process.env.INTERSWITCH_MAC_KEY; 
-    
-    if (!macKey) {
-      console.warn("INTERSWITCH_MAC_KEY is missing from environment variables.");
-    }
-
-    // Interswitch documentation hash string concatenation formula:
-    // txn_ref + product_id + pay_item_id + amount + site_redirect_url + mac_key
     const stringToHash = `${txnRef}${productId}${payItemId}${amountInKobo}${siteRedirectUrl}${macKey || 'TEST_MAC_KEY'}`;
-    
+
+    console.log('--- INTERSWITCH INITIATION (JAR) ---');
+    console.log('TxnRef:', txnRef);
+    console.log('SiteURL:', siteRedirectUrl);
+    console.log('Hash String:', stringToHash);
+
     // Generate SHA-512 Hash
     const hash = crypto.createHash('sha512').update(stringToHash).digest('hex');
 
