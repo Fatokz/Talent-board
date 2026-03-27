@@ -24,9 +24,8 @@ export default async function handler(req, res) {
     const currency = '566'; // 566 is NGN (Naira)
     
     // Determine the Redirect URL after payment completion
-    const siteRedirectUrl = process.env.SITE_URL 
-      ? `${process.env.SITE_URL}/dashboard?type=jar&jarId=${jarId}` 
-      : `http://localhost:5173/dashboard?type=jar&jarId=${jarId}`;
+    const protocol = req.headers.host.includes('localhost') ? 'http' : 'https';
+    const siteRedirectUrl = `${protocol}://${req.headers.host}/dashboard?type=jar&jarId=${jarId}`;
     
     const macKey = process.env.INTERSWITCH_MAC_KEY; 
     

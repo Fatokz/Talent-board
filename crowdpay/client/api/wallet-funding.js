@@ -34,9 +34,8 @@ export default async function handler(req, res) {
       const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
       const payItemId = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX276001';
       const currency = '566';
-      const siteRedirectUrl = process.env.SITE_URL
-        ? `${process.env.SITE_URL}/dashboard?wallet_funded=${txnRef}&amount=${amount}`
-        : `http://localhost:5173/dashboard?wallet_funded=${txnRef}&amount=${amount}`;
+      const protocol = req.headers.host.includes('localhost') ? 'http' : 'https';
+      const siteRedirectUrl = `${protocol}://${req.headers.host}/dashboard?wallet_funded=${txnRef}&amount=${amount}`;
       const macKey = process.env.INTERSWITCH_MAC_KEY;
       const hash = crypto.createHash('sha512')
         .update(`${txnRef}${productId}${payItemId}${amountInKobo}${siteRedirectUrl}${macKey || 'TEST_MAC_KEY'}`)
