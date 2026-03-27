@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { MessageSquare, Menu, User, ChevronRight, Inbox } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { subscribeToVendorConversations, subscribeToVendorProfile, Conversation, VendorProfile } from '../../lib/db'
+import { subscribeToVendorConversations, subscribeToVendorProfile, subscribeToJarMembers, Conversation, VendorProfile } from '../../lib/db'
 import VendorChatModal from '../../components/VendorChatModal'
 
 interface Props { onMenuClick?: () => void }
@@ -12,6 +12,7 @@ export default function VendorInbox({ onMenuClick }: Props) {
     const [activeConvo, setActiveConvo] = useState<Conversation | null>(null)
     const [loading, setLoading] = useState(true)
     const [vendorData, setVendorData] = useState<VendorProfile | null>(null)
+    const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({})
 
     useEffect(() => {
         if (!currentUser?.uid) return
@@ -26,6 +27,17 @@ export default function VendorInbox({ onMenuClick }: Props) {
         })
         return unsub
     }, [currentUser?.uid])
+
+    // Resolve names for the sidebar list
+    useEffect(() => {
+        if (conversations.length === 0) return
+        const uids = [...new Set(conversations.map(c => c.userId))]
+        return subscribeToJarMembers(uids, (profiles) => {
+            const nameMap: Record<string, string> = {}
+            profiles.forEach(p => { nameMap[p.uid] = p.fullName })
+            setResolvedNames(prev => ({ ...prev, ...nameMap }))
+        })
+    }, [conversations])
 
     const totalUnread = conversations.reduce((acc: number, c: Conversation) => acc + (c.vendorUnread || 0), 0)
 
@@ -101,7 +113,9 @@ export default function VendorInbox({ onMenuClick }: Props) {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-0.5">
-                                                <p className={`text-sm font-black truncate ${isActive ? 'text-blue-950' : 'text-slate-900'}`}>{convo.userName}</p>
+                                                <p className={`text-sm font-black truncate ${isActive ? 'text-blue-950' : 'text-slate-900'}`}>
+                                                    {resolvedNames[convo.userId] || convo.userName}
+                                                </p>
                                                 <span className="text-[9px] font-bold text-slate-400 uppercase tabular-nums">
                                                     {formatTime(convo.lastMessageAt)}
                                                 </span>

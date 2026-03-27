@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Send, Store, MessageSquare } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { sendMessage, subscribeToMessages, markConversationRead, subscribeToVendorProfile, Message, VendorProfile } from '../lib/db'
+import { sendMessage, subscribeToMessages, markConversationRead, subscribeToVendorProfile, subscribeToUserDoc, Message, VendorProfile, UserProfile } from '../lib/db'
 
 interface Props {
     isOpen: boolean;
@@ -21,18 +21,19 @@ export default function VendorChatModal({
     buyerId, buyerName,
     isVendorView, embedded, hideHeader 
 }: Props) {
-    const { currentUser } = useAuth()
+    const { currentUser, userProfile } = useAuth()
     const [msgs, setMsgs] = useState<Message[]>([])
     const [text, setText] = useState('')
     const [loading, setLoading] = useState(false)
     const [vendorProfile, setVendorProfile] = useState<VendorProfile | null>(null)
+    const [buyerProfile, setBuyerProfile] = useState<UserProfile | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
 
     const resolvedConversationId = buyerId && vendorId ? `${buyerId}_${vendorId}` : ''
 
-    // Source of Truth for names
+    // Source of Truth for names (prioritize real-time Firestore profiles over passed props)
     const resolvedVendorName = vendorProfile?.name || vendorName
-    const resolvedBuyerName = isVendorView ? buyerName : (currentUser?.displayName || buyerName)
+    const resolvedBuyerName = buyerProfile?.fullName || (isVendorView ? buyerName : (userProfile?.fullName || buyerName))
 
     const myName = isVendorView ? resolvedVendorName : resolvedBuyerName
     const otherUserName = isVendorView ? resolvedBuyerName : resolvedVendorName
@@ -41,6 +42,11 @@ export default function VendorChatModal({
         if (!isOpen || !vendorId) return
         return subscribeToVendorProfile(vendorId, (data) => setVendorProfile(data))
     }, [isOpen, vendorId])
+
+    useEffect(() => {
+        if (!isOpen || !buyerId) return
+        return subscribeToUserDoc(buyerId, (data) => setBuyerProfile(data))
+    }, [isOpen, buyerId])
 
     useEffect(() => {
         if (!isOpen || !resolvedConversationId) return
@@ -100,8 +106,16 @@ export default function VendorChatModal({
                     
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
-                                <Store size={22} className="text-white/90" />
+                            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner overflow-hidden">
+                                {vendorProfile?.logo ? (
+                                    <img 
+                                        src={vendorProfile.logo} 
+                                        alt="" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <Store size={22} className="text-white/90" />
+                                )}
                             </div>
                             <div className="min-w-0">
                                 <h3 className="font-black text-lg tracking-tight truncate leading-tight">{otherUserName}</h3>
@@ -144,7 +158,7 @@ export default function VendorChatModal({
                             <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${!isFirstInGroup ? '-mt-3' : ''}`}>
                                 {isFirstInGroup && (
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 mx-2">
-                                        {isMe ? 'You' : m.senderName}
+                                        {isMe ? 'You' : (m.senderName === 'User' ? otherUserName : m.senderName)}
                                     </span>
                                 )}
                                 <div className={`max-w-[85%] group relative animate-in zoom-in-95 fade-in duration-300`}>

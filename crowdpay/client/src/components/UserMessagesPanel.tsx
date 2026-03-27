@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, MessageSquare, Store, Inbox, ChevronLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeToUserConversations, Conversation } from '../lib/db'
+import { subscribeToUserConversations, Conversation, subscribeToAllVendors } from '../lib/db'
 import VendorChatModal from './VendorChatModal'
 
 interface Props {
@@ -10,10 +10,12 @@ interface Props {
 }
 
 export default function UserMessagesPanel({ isOpen, onClose }: Props) {
-    const { currentUser } = useAuth()
+    const { currentUser, userProfile } = useAuth()
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [activeConvo, setActiveConvo] = useState<Conversation | null>(null)
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+    const [resolvedVendorNames, setResolvedVendorNames] = useState<Record<string, string>>({})
+    const [resolvedVendorLogos, setResolvedVendorLogos] = useState<Record<string, string>>({})
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -33,6 +35,20 @@ export default function UserMessagesPanel({ isOpen, onClose }: Props) {
         const unsub = subscribeToUserConversations(currentUser.uid, setConversations)
         return unsub
     }, [currentUser?.uid])
+
+    // Resolve vendor names and logos for the list
+    useEffect(() => {
+        return subscribeToAllVendors((vendors) => {
+            const nameMap: Record<string, string> = {}
+            const logoMap: Record<string, string> = {}
+            vendors.forEach(v => {
+                nameMap[v.id] = v.name
+                if (v.logo) logoMap[v.id] = v.logo
+            })
+            setResolvedVendorNames(nameMap)
+            setResolvedVendorLogos(logoMap)
+        })
+    }, [])
 
     if (!isOpen) return null
 
@@ -92,7 +108,7 @@ export default function UserMessagesPanel({ isOpen, onClose }: Props) {
                                 vendorId={activeConvo.vendorId}
                                 vendorName={activeConvo.vendorName}
                                 buyerId={currentUser?.uid || ''}
-                                buyerName={currentUser?.displayName || 'User'}
+                                buyerName={userProfile?.fullName || 'User'}
                                 embedded={true}
                                 hideHeader={isMobile}
                             />
@@ -121,12 +137,22 @@ export default function UserMessagesPanel({ isOpen, onClose }: Props) {
                                                 onClick={() => setActiveConvo(convo)}
                                                 className="w-full flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-900/5 transition-all text-left group relative overflow-hidden"
                                             >
-                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-slate-50 border border-slate-100 flex items-center justify-center text-blue-900 shrink-0 group-hover:scale-105 transition-transform duration-300">
-                                                    <Store size={22} />
+                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-slate-50 border border-slate-100 flex items-center justify-center text-blue-900 shrink-0 group-hover:scale-105 transition-transform duration-300 overflow-hidden">
+                                                    {resolvedVendorLogos[convo.vendorId] ? (
+                                                        <img 
+                                                            src={resolvedVendorLogos[convo.vendorId]} 
+                                                            alt="" 
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <Store size={22} />
+                                                    )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between mb-0.5">
-                                                        <p className="text-sm font-black text-slate-900 truncate">{convo.vendorName}</p>
+                                                        <p className="text-sm font-black text-slate-900 truncate">
+                                                            {resolvedVendorNames[convo.vendorId] || convo.vendorName}
+                                                        </p>
                                                         {timeStr && (
                                                             <span className="text-[9px] font-bold text-slate-400 uppercase tabular-nums">
                                                                 {timeStr}
@@ -160,7 +186,7 @@ export default function UserMessagesPanel({ isOpen, onClose }: Props) {
                     vendorId={activeConvo.vendorId}
                     vendorName={activeConvo.vendorName}
                     buyerId={currentUser?.uid || ''}
-                    buyerName={currentUser?.displayName || 'User'}
+                    buyerName={userProfile?.fullName || 'User'}
                 />
             )}
         </>
