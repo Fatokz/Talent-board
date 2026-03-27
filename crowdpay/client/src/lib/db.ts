@@ -585,6 +585,11 @@ export const subscribeToVendorProfile = (vendorId: string, callback: (v: VendorP
     });
 };
 
+export const updateVendorProfile = async (vendorId: string, data: Partial<VendorProfile>) => {
+    const vRef = doc(db, 'vendorProfiles', vendorId);
+    await updateDoc(vRef, data);
+};
+
 export const subscribeToUserDoc = (uid: string, callback: (user: UserProfile | null) => void) => {
     const docRef = doc(db, 'users', uid);
     return onSnapshot(docRef, snap => {

@@ -4,7 +4,7 @@ import {
     CheckCircle, RefreshCcw, Menu, Building, CreditCard
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { subscribeToUserDoc, updateUserProfile, UserProfile } from '../../lib/db'
+import { subscribeToUserDoc, updateUserProfile, UserProfile, updateVendorProfile } from '../../lib/db'
 import { apiFetch } from '../../utils/api'
 import toast from 'react-hot-toast'
 
@@ -109,6 +109,10 @@ export default function VendorKyc({ onMenuClick }: Props) {
                 accountName: bankJson.data.accountName,
                 fullName: `${json.data.firstName} ${json.data.lastName}`.trim()
             })
+            
+            // Also explicitly mark Vendor Profile as verified
+            await updateVendorProfile(currentUser!.uid, { verified: true })
+            
             toast.success('KYC verified! Your merchant account is now fully active.')
         } catch {
             const msg = 'Network error during verification.'

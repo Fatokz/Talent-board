@@ -17,7 +17,7 @@ interface SidebarProps {
 
 function SidebarContent({ onClose }: { onClose: () => void }) {
     const navigate = useNavigate()
-    const { currentUser, signOut, switchRole } = useAuth()
+    const { currentUser, userProfile, signOut, switchRole } = useAuth()
     const [pendingOrders, setPendingOrders] = useState(0)
     const [vendorName, setVendorName] = useState<string>('')
     const [switching, setSwitching] = useState(false)
@@ -240,8 +240,17 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                     <div className="flex-1 min-w-0">
                         <p className="text-white font-bold text-[13px] truncate capitalize">{currentUser?.displayName || 'Merchant'}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
-                            <p className="text-emerald-400 text-[10px] font-black uppercase tracking-wider">Verified Vendor</p>
+                            {userProfile?.kycStatus === 'verified' ? (
+                                <>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                                    <p className="text-emerald-400 text-[10px] font-black uppercase tracking-wider">Verified Vendor</p>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+                                    <p className="text-amber-400 text-[10px] font-black uppercase tracking-wider text-wrap">Unverified Account</p>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
