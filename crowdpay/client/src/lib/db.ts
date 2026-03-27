@@ -144,6 +144,18 @@ export interface Message {
     timestamp: number;
 }
 
+export interface Conversation {
+    id: string;          // conversationId = `${userId}_${vendorId}`
+    userId: string;
+    userName: string;
+    vendorId: string;
+    vendorName: string;
+    lastMessage: string;
+    lastMessageAt: number;
+    vendorUnread: number;  // messages vendor hasn't read
+    userUnread: number;    // messages user hasn't read
+}
+
 // 1. Create a new Jar
 export const createJar = async (
     jarData: Omit<Jar, 'id' | 'createdAt' | 'raised' | 'members' | 'status'>,
@@ -454,9 +466,50 @@ export const markWithdrawalDisbursed = async (requestId: string) => {
 
 // ─── MESSAGING ──────────────────────────────────────────────────────────────
 
-export const sendMessage = async (conversationId: string, message: Message) => {
+export const upsertConversationMeta = async (
+    conversationId: string,
+    meta: Partial<Omit<Conversation, 'id'>>
+) => {
+    const metaRef = doc(db, 'conversationMeta', conversationId);
+    await setDoc(metaRef, { ...meta, id: conversationId }, { merge: true });
+};
+
+export const sendMessage = async (
+    conversationId: string,
+    message: Message,
+    meta?: { vendorId: string; vendorName: string; userId: string; userName: string; senderIsVendor: boolean }
+) => {
     const chatRef = collection(db, 'conversations', conversationId, 'messages');
     await addDoc(chatRef, message);
+
+    // Keep conversation metadata in sync for inbox views
+    if (meta) {
+        const metaRef = doc(db, 'conversationMeta', conversationId);
+        const snap = await getDoc(metaRef);
+        const existing = snap.exists() ? snap.data() as Conversation : null;
+        await setDoc(metaRef, {
+            id: conversationId,
+            userId: meta.userId,
+            userName: meta.userName,
+            vendorId: meta.vendorId,
+            vendorName: meta.vendorName,
+            lastMessage: message.text,
+            lastMessageAt: message.timestamp,
+            // Increment the OTHER party's unread count
+            vendorUnread: meta.senderIsVendor ? 0 : (existing?.vendorUnread || 0) + 1,
+            userUnread: meta.senderIsVendor ? (existing?.userUnread || 0) + 1 : 0,
+        }, { merge: true });
+    }
+};
+
+export const markConversationRead = async (
+    conversationId: string,
+    role: 'vendor' | 'user'
+) => {
+    const metaRef = doc(db, 'conversationMeta', conversationId);
+    await setDoc(metaRef, {
+        [role === 'vendor' ? 'vendorUnread' : 'userUnread']: 0
+    }, { merge: true });
 };
 
 export const subscribeToMessages = (conversationId: string, callback: (msgs: Message[]) => void) => {
@@ -465,6 +518,32 @@ export const subscribeToMessages = (conversationId: string, callback: (msgs: Mes
     return onSnapshot(q, (snap) => {
         const msgs = snap.docs.map(d => d.data() as Message);
         callback(msgs);
+    });
+};
+
+export const subscribeToVendorConversations = (
+    vendorId: string,
+    callback: (convos: Conversation[]) => void
+) => {
+    const ref = collection(db, 'conversationMeta');
+    const q = query(ref, where('vendorId', '==', vendorId));
+    return onSnapshot(q, snap => {
+        const convos = snap.docs.map(d => d.data() as Conversation);
+        convos.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+        callback(convos);
+    });
+};
+
+export const subscribeToUserConversations = (
+    userId: string,
+    callback: (convos: Conversation[]) => void
+) => {
+    const ref = collection(db, 'conversationMeta');
+    const q = query(ref, where('userId', '==', userId));
+    return onSnapshot(q, snap => {
+        const convos = snap.docs.map(d => d.data() as Conversation);
+        convos.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+        callback(convos);
     });
 };
 

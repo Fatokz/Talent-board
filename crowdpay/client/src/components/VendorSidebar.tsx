@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
     LayoutDashboard, Package, ShoppingBag, DollarSign, Settings,
-    LogOut, X, User as UserIcon, Store, ArrowRightLeft, ShieldCheck
+    LogOut, X, User as UserIcon, Store, ArrowRightLeft, ShieldCheck, MessageSquare
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeToVendorOrders, subscribeToVendorProfile } from '../lib/db'
+import { subscribeToVendorOrders, subscribeToVendorProfile, subscribeToVendorConversations } from '../lib/db'
 import Logo from '../assets/crowdpayplain.png'
 import toast from 'react-hot-toast'
 
@@ -23,6 +23,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
     const [switching, setSwitching] = useState(false)
     const [showRoleSelect, setShowRoleSelect] = useState(false)
     const [confirmSignOut, setConfirmSignOut] = useState(false)
+    const [unreadCount, setUnreadCount] = useState(0)
     const roleSelectRef = useRef<HTMLDivElement>(null)
 
     // Click away to close role selector
@@ -54,6 +55,13 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
         })
     }, [currentUser])
 
+    useEffect(() => {
+        if (!currentUser?.uid) return
+        return subscribeToVendorConversations(currentUser.uid, (convos) => {
+            setUnreadCount(convos.reduce((acc, c) => acc + (c.vendorUnread || 0), 0))
+        })
+    }, [currentUser])
+
     const currentRole = 'vendor' as string
 
     const navItems = [
@@ -61,6 +69,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
         { to: '/dashboard/vendor/products', icon: Package, label: 'Product Inventory' },
         { to: '/dashboard/vendor/orders', icon: ShoppingBag, label: 'Orders', badge: pendingOrders > 0 ? pendingOrders : undefined },
         { to: '/dashboard/vendor/payouts', icon: DollarSign, label: 'Earnings & Payouts' },
+        { to: '/dashboard/vendor/messages', icon: MessageSquare, label: 'Messages', badge: unreadCount > 0 ? unreadCount : undefined },
         { to: '/dashboard/vendor/profile', icon: UserIcon, label: 'Merchant Profile' },
         { to: '/dashboard/vendor/kyc', icon: ShieldCheck, label: 'KYC Verification' },
         { to: '/dashboard/vendor/settings', icon: Settings, label: 'Merchant Settings' },

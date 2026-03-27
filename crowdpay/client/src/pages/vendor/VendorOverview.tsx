@@ -2,16 +2,17 @@ import { useState, useEffect } from 'react'
 import { 
     TrendingUp, Menu, Package,
     Plus, Users, DollarSign,
-    ShieldCheck, Clock, ShoppingCart
+    ShieldCheck, Clock, ShoppingCart, MessageSquare
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { 
     subscribeToVendorProfile, VendorProfile, 
     subscribeToVendorOrders, Order,
-    subscribeToVendorProducts, Product
+    subscribeToVendorProducts, Product,
+    subscribeToVendorConversations
 } from '../../lib/db'
 import AddProductModal from '../../components/AddProductModal'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
 interface Props { onMenuClick?: () => void }
@@ -28,6 +29,8 @@ export default function VendorOverview({ onMenuClick }: Props) {
     })
     const [orders, setOrders] = useState<Order[]>([])
     const [products, setProducts] = useState<Product[]>([])
+    const [unreadCount, setUnreadCount] = useState(0)
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (!currentUser?.uid) return
@@ -48,10 +51,15 @@ export default function VendorOverview({ onMenuClick }: Props) {
             setProducts(data.filter(p => p.status !== 'deleted'))
         })
 
+        const unsubConvos = subscribeToVendorConversations(currentUser.uid, (convos) => {
+            setUnreadCount(convos.reduce((acc, c) => acc + (c.vendorUnread || 0), 0))
+        })
+
         return () => {
             unsubProfile()
             unsubOrders()
             unsubProducts()
+            unsubConvos()
         }
     }, [currentUser])
 
@@ -75,6 +83,21 @@ export default function VendorOverview({ onMenuClick }: Props) {
                     <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-wider">
                         <ShieldCheck size={12} /> Live
                     </div>
+
+                    {/* Messages Icon */}
+                    <button
+                        onClick={() => navigate('/dashboard/vendor/messages')}
+                        className="relative w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-blue-50 hover:text-blue-700 transition-colors shrink-0"
+                        title="Messages"
+                    >
+                        <MessageSquare size={18} className="text-slate-600" />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4.5 h-4.5 min-w-[18px] px-1 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center border-2 border-white shadow-sm">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
+                    </button>
+
                     <button 
                         onClick={() => setIsAddModalOpen(true)}
                         className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl bg-blue-900 text-white text-xs font-bold flex items-center gap-2 hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 whitespace-nowrap shrink-0"
