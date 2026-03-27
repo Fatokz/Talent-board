@@ -14,12 +14,26 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    // Reset state every time the modal opens so stale loading/error never persists
+    // Reset state every time the modal opens
     useEffect(() => {
         if (isOpen) {
             setAmount('')
             setLoading(false)
             setError('')
+
+            // Pre-load Interswitch script
+            const isProd = import.meta.env.PROD
+            const scriptUrl = isProd 
+                ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
+                : 'https://newwebpay.qa.interswitchng.com/inline-checkout.js'
+            
+            if (!document.getElementById('interswitch-inline')) {
+                const script = document.createElement('script')
+                script.id = 'interswitch-inline'
+                script.src = scriptUrl
+                script.async = true
+                document.body.appendChild(script)
+            }
         }
     }, [isOpen])
 
@@ -62,28 +76,62 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
             
             // ... (rest of the existing logic for live Interswitch mode)
             
-            // 2. Load inline-checkout script dynamically
+            // 2. Ensure script is loaded
             const isProd = import.meta.env.PROD
-            const scriptUrl = isProd 
-                ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
-                : 'https://qa.interswitchng.com/collections/public/javascripts/inline-checkout.js'
-            
-            if (!document.getElementById('interswitch-inline')) {
-                const script = document.createElement('script')
+            let script = document.getElementById('interswitch-inline') as HTMLScriptElement
+            if (!script) {
+                // This shouldn't happen due to preload, but for safety:
+                script = document.createElement('script')
                 script.id = 'interswitch-inline'
-                script.src = scriptUrl
+                script.src = isProd 
+                    ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
+                    : 'https://newwebpay.qa.interswitchng.com/inline-checkout.js'
                 document.body.appendChild(script)
-                await new Promise(resolve => script.onload = resolve)
             }
 
-            // 3. Launch the inline WebCheckout modal
+            if (typeof (window as any).webpayCheckout !== 'function') {
+                // If the primary fails, try the fallback mirror
+                if (!isProd) {
+                    console.warn("Primary Interswitch URL failed, trying mirror...");
+                    script.src = 'https://webpay-ui.k8.isw.la/inline-checkout.js';
+                }
+
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Interswitch script took too long to initialize. Please check your network connection.')), 10000)
+                    const check = setInterval(() => {
+                        if (typeof (window as any).webpayCheckout === 'function') {
+                            clearInterval(check)
+                            clearTimeout(timeout)
+                            resolve(true)
+                        }
+                    }, 500)
+                    
+                    script.onload = () => {
+                        clearInterval(check)
+                        clearTimeout(timeout)
+                        resolve(true)
+                    }
+                    script.onerror = () => {
+                        // One last try if mirror also fails
+                        if (!isProd && script.src !== 'https://webpay-ui.k8.isw.la/inline-checkout.js') {
+                            script.src = 'https://webpay-ui.k8.isw.la/inline-checkout.js';
+                        } else {
+                            clearInterval(check)
+                            clearTimeout(timeout)
+                            reject(new Error('Interswitch script failed to load. The payment gateway servers might be temporarily unreachable.'))
+                        }
+                    }
+                })
+            }
+
             (window as any).webpayCheckout({
-                merchant_code: String(data.productId || 'MX179536'),
-                pay_item_id: String(data.payItemId || 'Default_Payable_MX179536'),
+                merchant_code: String(data.productId || 'MX276001'),
+                pay_item_id: String(data.payItemId || 'Default_Payable_MX276001'),
                 txn_ref: String(data.txnRef),
-                amount: String(data.amount || Math.round(numAmount * 100)),
-                currency: String(data.currency || '566'),
-                site_redirect_url: data.siteRedirectUrl, // Passed just in case, but intercepted below
+                amount: Number(data.amount || Math.round(numAmount * 100)),
+                currency: Number(data.currency || 566),
+                hash: data.hash,
+                site_redirect_url: data.siteRedirectUrl || window.location.origin,
                 mode: isProd ? 'LIVE' : 'TEST',
                 onComplete: async function(response: any) {
                     console.log("Interswitch Callback:", response);

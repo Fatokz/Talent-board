@@ -16,11 +16,11 @@ export default async function handler(req, res) {
     const amountInKobo = Math.round(Number(amount) * 100);
     
     // Generate a unique Transaction Reference for this payment
-    const txnRef = `CP_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+    const txnRef = `CP${Date.now()}`;
     
     // Environment Variables — your real Interswitch Merchant Account
-    const productId   = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
-    const payItemId   = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX179536';
+    const productId   = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
+    const payItemId   = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX276001';
     const currency = '566'; // 566 is NGN (Naira)
     
     // Determine the Redirect URL after payment completion

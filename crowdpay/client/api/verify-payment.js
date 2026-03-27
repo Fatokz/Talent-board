@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     let verifiedAmountKobo = amountInKobo;
     let interswitchResponse = null;
 
-    const merchantCode = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
+    const merchantCode = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
     const response = await axios.get(
       `${baseUrl}?merchantcode=${merchantCode}&transactionreference=${txnRef}&amount=${amountInKobo}`,
       { headers: { Hash: hash } }

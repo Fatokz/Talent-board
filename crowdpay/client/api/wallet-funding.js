@@ -30,9 +30,9 @@ export default async function handler(req, res) {
 
     try {
       const amountInKobo = Math.round(Number(amount) * 100);
-      const txnRef = `CP_W_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
-      const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
-      const payItemId = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX179536';
+      const txnRef = `CPW${Date.now()}`;
+      const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
+      const payItemId = process.env.INTERSWITCH_PAY_ITEM_ID   || 'Default_Payable_MX276001';
       const currency = '566';
       const siteRedirectUrl = process.env.SITE_URL
         ? `${process.env.SITE_URL}/dashboard?wallet_funded=${txnRef}&amount=${amount}`
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     try {
       let isSuccess = false;
       const amountInKobo = Math.round(Number(amount) * 100);
-      const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX179536';
+      const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
       const macKey = process.env.INTERSWITCH_MAC_KEY;
       const hash = crypto.createHash('sha512')
         .update(`${productId}${txnRef}${macKey || 'TEST_MAC_KEY'}`)

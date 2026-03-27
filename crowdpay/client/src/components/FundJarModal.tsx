@@ -22,12 +22,26 @@ export default function FundJarModal({ isOpen, onClose, jar, profile }: Props) {
     const [fundingSource, setFundingSource] = useState<'interswitch' | 'wallet'>('interswitch')
     const [pinModalOpen, setPinModalOpen] = useState(false)
 
-    // Reset state every time the modal opens so stale loading/error never persists
+    // Reset state every time the modal opens
     useEffect(() => {
         if (isOpen) {
             setAmount('')
             setLoading(false)
             setError('')
+
+            // Pre-load Interswitch script
+            const isProd = import.meta.env.PROD
+            const scriptUrl = isProd 
+                ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
+                : 'https://newwebpay.qa.interswitchng.com/inline-checkout.js'
+            
+            if (!document.getElementById('interswitch-inline')) {
+                const script = document.createElement('script')
+                script.id = 'interswitch-inline'
+                script.src = scriptUrl
+                script.async = true
+                document.body.appendChild(script)
+            }
         }
     }, [isOpen])
 
@@ -75,28 +89,61 @@ export default function FundJarModal({ isOpen, onClose, jar, profile }: Props) {
             toast.success('Initializing Secure Payment...')
             // ... (rest of the existing logic for live Interswitch mode)
 
-            // 2. Load inline script dynamically
-            const isProd = import.meta.env.PROD // Vite checks if production build
-            const scriptUrl = isProd 
-                ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
-                : 'https://qa.interswitchng.com/collections/public/javascripts/inline-checkout.js'
-
-            if (!document.getElementById('interswitch-inline')) {
-                const script = document.createElement('script')
+            // 2. Ensure script is loaded
+            const isProd = import.meta.env.PROD
+            let script = document.getElementById('interswitch-inline') as HTMLScriptElement
+            if (!script) {
+                script = document.createElement('script')
                 script.id = 'interswitch-inline'
-                script.src = scriptUrl
+                script.src = isProd 
+                    ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
+                    : 'https://newwebpay.qa.interswitchng.com/inline-checkout.js'
                 document.body.appendChild(script)
-                await new Promise(resolve => script.onload = resolve)
+            }
+
+            if (typeof (window as any).webpayCheckout !== 'function') {
+                // If the primary fails, try the fallback mirror
+                if (!isProd) {
+                    console.warn("Primary Interswitch URL failed, trying mirror...");
+                    script.src = 'https://webpay-ui.k8.isw.la/inline-checkout.js';
+                }
+
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Interswitch script took too long to initialize. Please check your network connection.')), 10000)
+                    const check = setInterval(() => {
+                        if (typeof (window as any).webpayCheckout === 'function') {
+                            clearInterval(check)
+                            clearTimeout(timeout)
+                            resolve(true)
+                        }
+                    }, 500)
+                    
+                    script.onload = () => {
+                        clearInterval(check)
+                        clearTimeout(timeout)
+                        resolve(true)
+                    }
+                    script.onerror = () => {
+                        if (!isProd && script.src !== 'https://webpay-ui.k8.isw.la/inline-checkout.js') {
+                            script.src = 'https://webpay-ui.k8.isw.la/inline-checkout.js';
+                        } else {
+                            clearInterval(check)
+                            clearTimeout(timeout)
+                            reject(new Error('Interswitch script failed to load.'))
+                        }
+                    }
+                })
             }
 
             // 3. Launch the inline WebCheckout modal
             (window as any).webpayCheckout({
-                merchant_code: String(data.productId || 'MX179536'),
-                pay_item_id: String(data.payItemId || 'Default_Payable_MX179536'),
+                merchant_code: String(data.productId || 'MX276001'),
+                pay_item_id: String(data.payItemId || 'Default_Payable_MX276001'),
                 txn_ref: String(data.txnRef),
-                amount: String(data.amount || Math.round(numAmount * 100)),
-                currency: String(data.currency || '566'),
-                site_redirect_url: data.siteRedirectUrl,
+                amount: Number(data.amount || Math.round(numAmount * 100)),
+                currency: Number(data.currency || 566),
+                hash: data.hash,
+                site_redirect_url: data.siteRedirectUrl || window.location.origin,
                 mode: isProd ? 'LIVE' : 'TEST',
                 onComplete: async function(response: any) {
                     console.log("Interswitch Callback:", response);
