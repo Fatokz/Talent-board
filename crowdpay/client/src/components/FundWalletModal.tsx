@@ -74,26 +74,34 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
             if (!res.ok) throw new Error(data.message || 'Failed to initiate payment')
             toast.success('Initializing Secure Payment...')
             
-            // ... (rest of the existing logic for live Interswitch mode)
-            
+            // Dynamically determine environment based on productId
+            const productId = String(data.productId || 'MX276001');
+            const isSandbox = productId.startsWith('MX26') || productId === 'MX007';
+            const scriptUrl = isSandbox 
+                ? 'https://newwebpay.qa.interswitchng.com/inline-checkout.js'
+                : 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js';
+            const mode = isSandbox ? 'TEST' : 'LIVE';
+
             // 2. Ensure script is loaded
-            const isProd = import.meta.env.PROD
-            let script = document.getElementById('interswitch-inline') as HTMLScriptElement
-            if (!script) {
-                // This shouldn't happen due to preload, but for safety:
-                script = document.createElement('script')
-                script.id = 'interswitch-inline'
-                script.src = isProd 
-                    ? 'https://webpay.interswitchng.com/collections/public/javascripts/inline-checkout.js'
-                    : 'https://newwebpay.qa.interswitchng.com/inline-checkout.js'
-                document.body.appendChild(script)
+            let script = document.getElementById('interswitch-inline') as HTMLScriptElement;
+            if (!script || script.src !== scriptUrl) {
+                if (script) { // Remove existing if URL needs to change
+                    script.remove();
+                }
+                script = document.createElement('script');
+                script.id = 'interswitch-inline';
+                script.src = scriptUrl;
+                script.async = true;
+                document.body.appendChild(script);
             }
 
             if (typeof (window as any).webpayCheckout !== 'function') {
-                // If the primary fails, try the fallback mirror
-                if (!isProd) {
-                    console.warn("Primary Interswitch URL failed, trying mirror...");
-                    script.src = 'https://webpay-ui.k8.isw.la/inline-checkout.js';
+                // If the primary fails, try the fallback mirror (only for Sandbox)
+                if (isSandbox) {
+                    console.warn("Primary Interswitch QA URL failed, trying mirror...");
+                    if (script.src !== 'https://webpay-ui.k8.isw.la/inline-checkout.js') {
+                        script.src = 'https://webpay-ui.k8.isw.la/inline-checkout.js';
+                    }
                 }
 
                 await new Promise((resolve, reject) => {
@@ -112,27 +120,27 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
                         resolve(true)
                     }
                     script.onerror = () => {
-                        // One last try if mirror also fails
-                        if (!isProd && script.src !== 'https://webpay-ui.k8.isw.la/inline-checkout.js') {
+                        // One last try if mirror also fails (only for non-prod environments)
+                        if (isSandbox && script.src !== 'https://webpay-ui.k8.isw.la/inline-checkout.js') {
                             script.src = 'https://webpay-ui.k8.isw.la/inline-checkout.js';
                         } else {
                             clearInterval(check)
                             clearTimeout(timeout)
-                            reject(new Error('Interswitch script failed to load. The payment gateway servers might be temporarily unreachable.'))
+                            reject(new Error('Interswitch script failed to load.'))
                         }
                     }
                 })
             }
 
             (window as any).webpayCheckout({
-                merchant_code: String(data.productId || 'MX276001'),
+                merchant_code: productId,
                 pay_item_id: String(data.payItemId || 'Default_Payable_MX276001'),
                 txn_ref: String(data.txnRef),
                 amount: Number(data.amount || Math.round(numAmount * 100)),
                 currency: Number(data.currency || 566),
                 hash: data.hash,
                 site_redirect_url: data.siteRedirectUrl || window.location.origin,
-                mode: isProd ? 'LIVE' : 'TEST',
+                mode: mode,
                 onComplete: async function(response: any) {
                     console.log("Interswitch Callback:", response);
                     
@@ -262,6 +270,37 @@ export default function FundWalletModal({ isOpen, onClose }: Props) {
                     >
                         {loading ? <><Loader2 size={20} className="animate-spin" /> Preparing Checkout...</> : <><CreditCard size={20} /> Proceed to Interswitch</>}
                     </button>
+
+                    {/* Developer Bypass Button */}
+                    {!import.meta.env.PROD && (
+                        <button 
+                            type="button"
+                            onClick={async () => {
+                                if (!numAmount) return;
+                                setLoading(true);
+                                try {
+                                    await fetch('/api/wallet-funding?action=verify', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ 
+                                            txnRef: `SIM_${Date.now()}`, 
+                                            amount: numAmount, 
+                                            uid: currentUser?.uid 
+                                        })
+                                    });
+                                    toast.success('Simulated Success! Wallet Funded.');
+                                    onClose(); // Close the modal - balance updates automatically via Firestore listener
+                                } catch (e) {
+                                    toast.error('Bypass failed');
+                                } finally {
+                                    setLoading(false);
+                                }
+                            }}
+                            className="w-full mt-2 h-10 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 text-xs font-bold hover:border-blue-500 hover:text-blue-500 transition-all flex items-center justify-center gap-2"
+                        >
+                            <ShieldCheck size={14} /> Simulate Success (Dev Mode)
+                        </button>
+                    )}
                     
                     <div className="mt-4 flex items-center justify-center gap-2 opacity-50">
                         <Lock size={12} className="text-slate-500" />

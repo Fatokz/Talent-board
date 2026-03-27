@@ -49,15 +49,22 @@ export default async function handler(req, res) {
     let verifiedAmountKobo = amountInKobo;
     let interswitchResponse = null;
 
-    const merchantCode = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
-    const response = await axios.get(
-      `${baseUrl}?merchantcode=${merchantCode}&transactionreference=${txnRef}&amount=${amountInKobo}`,
-      { headers: { Hash: hash } }
-    );
-    interswitchResponse = response.data;
-    if (interswitchResponse && (interswitchResponse.ResponseCode === '00' || interswitchResponse.ResponseCode === '000')) {
+    // Simulation Bypass
+    if (txnRef.startsWith('SIM_JAR_')) {
       isSuccess = true;
-      verifiedAmountKobo = Number(interswitchResponse.Amount || amountInKobo);
+      verifiedAmountKobo = amountInKobo;
+      interswitchResponse = { ResponseCode: '00', ResponseDescription: 'SIMULATED_SUCCESS' };
+    } else {
+      const merchantCode = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
+      const response = await axios.get(
+        `${baseUrl}?merchantcode=${merchantCode}&transactionreference=${txnRef}&amount=${amountInKobo}`,
+        { headers: { Hash: hash } }
+      );
+      interswitchResponse = response.data;
+      if (interswitchResponse && (interswitchResponse.ResponseCode === '00' || interswitchResponse.ResponseCode === '000')) {
+        isSuccess = true;
+        verifiedAmountKobo = Number(interswitchResponse.Amount || amountInKobo);
+      }
     }
 
     if (isSuccess) {

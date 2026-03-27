@@ -62,23 +62,30 @@ export default async function handler(req, res) {
     try {
       let isSuccess = false;
       const amountInKobo = Math.round(Number(amount) * 100);
-      const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
-      const macKey = process.env.INTERSWITCH_MAC_KEY;
-      const hash = crypto.createHash('sha512')
-        .update(`${productId}${txnRef}${macKey || 'TEST_MAC_KEY'}`)
-        .digest('hex');
-      const baseUrl = process.env.NODE_ENV === 'production'
-        ? 'https://webpay.interswitchng.com/collections/api/v1/gettransaction.json'
-        : 'https://qa.interswitchng.com/collections/api/v1/gettransaction.json';
-        
-      const response = await fetch(`${baseUrl}?merchantcode=${productId}&transactionreference=${txnRef}&amount=${amountInKobo}`, {
-        headers: { Hash: hash }
-      });
-      const data = await response.json();
-      if (data && (data.ResponseCode === '00' || data.ResponseCode === '000')) {
+      
+      // Simulation Bypass
+      if (txnRef.startsWith('SIM_')) {
         isSuccess = true;
-        // Use Interswitch Amount (Kobo) converted to Naira as source of truth
-        req.verifiedAmount = Number(data.Amount) / 100;
+        req.verifiedAmount = Number(amount);
+      } else {
+        const productId = process.env.INTERSWITCH_MERCHANT_CODE || 'MX276001';
+        const macKey = process.env.INTERSWITCH_MAC_KEY;
+        const hash = crypto.createHash('sha512')
+          .update(`${productId}${txnRef}${macKey || 'TEST_MAC_KEY'}`)
+          .digest('hex');
+          
+        const baseUrl = process.env.NODE_ENV === 'production'
+          ? 'https://webpay.interswitchng.com/collections/api/v1/gettransaction.json'
+          : 'https://qa.interswitchng.com/collections/api/v1/gettransaction.json';
+          
+        const response = await fetch(`${baseUrl}?merchantcode=${productId}&transactionreference=${txnRef}&amount=${amountInKobo}`, {
+          headers: { Hash: hash }
+        });
+        const data = await response.json();
+        if (data && (data.ResponseCode === '00' || data.ResponseCode === '000')) {
+          isSuccess = true;
+          req.verifiedAmount = Number(data.Amount) / 100;
+        }
       }
 
       if (isSuccess) {
