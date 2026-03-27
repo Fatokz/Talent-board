@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-    LayoutDashboard, Bell, Users, BookOpen, LogOut, X, User as UserIcon, Store, ArrowRightLeft, PlusCircle
+    LayoutDashboard, Bell, Users, BookOpen, LogOut, X, User as UserIcon, Store, ArrowRightLeft, PlusCircle, MessageSquare
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeToUserInvites, subscribeToVendorProfile } from '../lib/db'
+import { subscribeToUserInvites, subscribeToVendorProfile, subscribeToUserConversations } from '../lib/db'
 import Logo from '../assets/crowdpayplain.png'
 import toast from 'react-hot-toast'
 
@@ -13,9 +13,11 @@ interface SidebarProps {
     isOpen: boolean; 
     onClose: () => void;
     onOpenOnboarding: () => void;
+    onOpenMessages: () => void;
+    unreadCount: number;
 }
 
-function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, onOpenOnboarding: () => void }) {
+function SidebarContent({ onClose, onOpenOnboarding, onOpenMessages, unreadCount }: { onClose: () => void, onOpenOnboarding: () => void, onOpenMessages: () => void, unreadCount: number }) {
     const navigate = useNavigate()
     const { currentUser, userProfile, signOut, switchRole } = useAuth()
     const [notifCount, setNotifCount] = useState(0)
@@ -62,6 +64,7 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
         { to: '/dashboard/', icon: LayoutDashboard, label: 'Social Dashboard', end: true, badge: undefined as number | undefined },
         { to: '/dashboard/profile', icon: UserIcon, label: 'Profile & KYC', badge: undefined as number | undefined },
         { to: '/dashboard/marketplace', icon: Store, label: 'Marketplace', badge: undefined as number | undefined },
+        { onClick: onOpenMessages, icon: MessageSquare, label: 'Messages', badge: unreadCount > 0 ? unreadCount : undefined },
         { to: '/dashboard/notifications', icon: Bell, label: 'Notifications', badge: notifCount > 0 ? notifCount : undefined },
         { to: '/dashboard/groups', icon: Users, label: 'Group Management', badge: undefined as number | undefined },
         { to: '/dashboard/ledger', icon: BookOpen, label: 'Transaction Ledger', badge: undefined as number | undefined },
@@ -130,39 +133,52 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
             <nav className="relative flex-1 px-4 py-4 overflow-y-auto">
                 <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.1em] px-2 mb-2.5">Main Menu</p>
                 <div className="flex flex-col gap-1">
-                    {filteredNav.map(item => (
-                        <NavLink key={item.to + item.label} to={item.to} end={item.end}
-                            onClick={onClose}
-                            className={({ isActive }) =>
-                                `flex items-center gap-3 px-3 py-3 rounded-2xl transition-all ${isActive
-                                    ? 'bg-white/12 border border-white/15 shadow-inner shadow-black/20'
-                                    : 'hover:bg-white/5 border border-transparent'
-                                }`
-                            }>
-                            {({ isActive }) => (
-                                <>
-                                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isActive ? 'bg-gradient-to-br from-blue-700 to-blue-600 shadow-lg' : 'bg-white/7'}`}>
-                                        <item.icon size={17} className={isActive ? 'text-white' : 'text-white/45'} />
-                                        {/* Dot badge on icon */}
-                                        {item.badge && !isActive && (
-                                            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-slate-900 flex items-center justify-center text-[9px] font-black text-white">
-                                                {item.badge > 9 ? '9+' : item.badge}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className={`flex-1 text-[13px] font-${isActive ? 'bold' : 'medium'} ${isActive ? 'text-white' : 'text-white/50'}`}>
-                                        {item.label}
-                                    </span>
-                                    {/* Count badge on right */}
-                                    {item.badge && (
-                                        <span className="text-[10px] font-black bg-red-500 text-white rounded-full px-1.5 py-0.5 min-w-[20px] text-center shadow-lg shadow-red-500/20">
-                                            {item.badge > 99 ? '99+' : item.badge}
+                    {filteredNav.map(item => {
+                        const content = (
+                            <>
+                                <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${(item as any).to && location.pathname === (item as any).to ? 'bg-gradient-to-br from-blue-700 to-blue-600 shadow-lg' : 'bg-white/7'}`}>
+                                    <item.icon size={17} className={(item as any).to && location.pathname === (item as any).to ? 'text-white' : 'text-white/45'} />
+                                    {/* Dot badge on icon */}
+                                    {item.badge && !((item as any).to && location.pathname === (item as any).to) && (
+                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-slate-900 flex items-center justify-center text-[9px] font-black text-white">
+                                            {item.badge > 9 ? '9+' : item.badge}
                                         </span>
                                     )}
-                                </>
-                            )}
-                        </NavLink>
-                    ))}
+                                </div>
+                                <span className={`flex-1 text-[13px] font-${(item as any).to && location.pathname === (item as any).to ? 'bold' : 'medium'} ${(item as any).to && location.pathname === (item as any).to ? 'text-white' : 'text-white/50'}`}>
+                                    {item.label}
+                                </span>
+                                {/* Count badge on right */}
+                                {item.badge && (
+                                    <span className="text-[10px] font-black bg-red-500 text-white rounded-full px-1.5 py-0.5 min-w-[20px] text-center shadow-lg shadow-red-500/20">
+                                        {item.badge > 99 ? '99+' : item.badge}
+                                    </span>
+                                )}
+                            </>
+                        )
+
+                        if ('to' in item) {
+                            return (
+                                <NavLink key={(item as any).to + item.label} to={(item as any).to} end={item.end}
+                                    onClick={onClose}
+                                    className={({ isActive }) =>
+                                        `flex items-center gap-3 px-3 py-3 rounded-2xl transition-all ${isActive
+                                            ? 'bg-white/12 border border-white/15 shadow-inner shadow-black/20'
+                                            : 'hover:bg-white/5 border border-transparent'
+                                        }`
+                                    }>
+                                    {content}
+                                </NavLink>
+                            )
+                        }
+
+                        return (
+                            <button key={item.label} onClick={() => { item.onClick!(); onClose(); }}
+                                className="flex items-center gap-3 px-3 py-3 rounded-2xl transition-all hover:bg-white/5 border border-transparent w-full text-left">
+                                {content}
+                            </button>
+                        )
+                    })}
                 </div>
 
             </nav>
@@ -293,16 +309,16 @@ function SidebarContent({ onClose, onOpenOnboarding }: { onClose: () => void, on
     )
 }
 
-export default function Sidebar({ isOpen, onClose, onOpenOnboarding }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onOpenOnboarding, onOpenMessages, unreadCount }: SidebarProps) {
     return (
         <>
             <div className="hidden lg:flex shrink-0">
-                <SidebarContent onClose={onClose} onOpenOnboarding={onOpenOnboarding} />
+                <SidebarContent onClose={onClose} onOpenOnboarding={onOpenOnboarding} onOpenMessages={onOpenMessages} unreadCount={unreadCount} />
             </div>
             <div className={`lg:hidden fixed inset-0 z-50 flex transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
                 <div onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
                 <div className={`relative z-10 h-full transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <SidebarContent onClose={onClose} onOpenOnboarding={onOpenOnboarding} />
+                    <SidebarContent onClose={onClose} onOpenOnboarding={onOpenOnboarding} onOpenMessages={onOpenMessages} unreadCount={unreadCount} />
                 </div>
             </div>
         </>

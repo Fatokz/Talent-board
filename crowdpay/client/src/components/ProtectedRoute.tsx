@@ -7,10 +7,11 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     const location = useLocation();
 
     if (!currentUser) {
-        // Redirect them to the /signin page, but save the current location they were
-        // trying to go to when they were redirected. This allows us to send them
-        // along to that page after they login, which is a nicer user experience.
         return <Navigate to="/signin" state={{ from: location }} replace />;
+    }
+
+    if (!currentUser.emailVerified) {
+        return <Navigate to="/verify-email" replace />;
     }
 
     return <>{children}</>;

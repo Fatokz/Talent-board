@@ -1,31 +1,32 @@
 import { useState, useEffect } from 'react'
 import { Store, ShieldCheck, Star, Search, Menu, MessageSquare } from 'lucide-react'
-import { subscribeToAllProducts, subscribeToAllVendors, subscribeToUserConversations, Product, VendorProfile } from '../lib/db'
+import { subscribeToAllProducts, subscribeToAllVendors, Product, VendorProfile } from '../lib/db'
 import VendorChatModal from '../components/VendorChatModal'
-import UserMessagesPanel from '../components/UserMessagesPanel'
 import CreateJarModal from '../components/CreateJarModal'
 import ProductDetailsModal from '../components/ProductDetailsModal'
 import VendorProfileModal from '../components/VendorProfileModal'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
 
-interface Props { onMenuClick?: () => void }
+interface Props { 
+    onMenuClick: () => void;
+    onOpenMessages: () => void;
+    unreadCount: number;
+}
 
-export default function Marketplace({ onMenuClick }: Props) {
+export default function Marketplace({ onMenuClick, onOpenMessages, unreadCount }: Props) {
     const { currentUser } = useAuth()
-    const [chatVendor, setChatVendor] = useState<{ id: string; name: string } | null>(null)
+    const [products, setProducts] = useState<Product[]>([])
+    const [vendors, setVendors] = useState<VendorProfile[]>([])
+    const [chatVendor, setChatVendor] = useState<{ id: string, name: string } | null>(null)
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
     const [isProductDetailsOpen, setIsProductDetailsOpen] = useState(false)
     const [vendorProfileId, setVendorProfileId] = useState<string | null>(null)
     const [isCreateJarOpen, setIsCreateJarOpen] = useState(false)
     const [jarTargetAmount, setJarTargetAmount] = useState<number | undefined>(undefined)
-    const [isMessagesOpen, setIsMessagesOpen] = useState(false)
-    const [unreadCount, setUnreadCount] = useState(0)
     
     const [search, setSearch] = useState('')
     const [category, setCategory] = useState('All')
-    const [products, setProducts] = useState<Product[]>([])
-    const [vendors, setVendors] = useState<VendorProfile[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -41,14 +42,6 @@ export default function Marketplace({ onMenuClick }: Props) {
             unsubVendors()
         }
     }, [])
-
-    // Track unread message count for the inbox icon badge
-    useEffect(() => {
-        if (!currentUser?.uid) return
-        return subscribeToUserConversations(currentUser.uid, (convos) => {
-            setUnreadCount(convos.reduce((acc, c) => acc + (c.userUnread || 0), 0))
-        })
-    }, [currentUser?.uid])
 
     const categories = ['All', 'Electronics', 'Education', 'Events']
 
@@ -107,7 +100,7 @@ export default function Marketplace({ onMenuClick }: Props) {
 
                     {/* Messages Icon */}
                     <button
-                        onClick={() => setIsMessagesOpen(true)}
+                        onClick={onOpenMessages}
                         className="relative w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-blue-50 hover:text-blue-700 transition-colors shrink-0"
                         title="Messages"
                     >
@@ -260,11 +253,6 @@ export default function Marketplace({ onMenuClick }: Props) {
             </div>
 
             {/* Modals */}
-            <UserMessagesPanel
-                isOpen={isMessagesOpen}
-                onClose={() => setIsMessagesOpen(false)}
-            />
-
             {chatVendor && (
                 <VendorChatModal 
                     isOpen={!!chatVendor} 

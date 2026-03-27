@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff, Lock, ArrowRight, Zap, CheckCircle, Users, TrendingUp } from 'lucide-react'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../../lib/firebase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -43,6 +43,9 @@ export default function SignUpPage() {
             const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password)
             const user = userCredential.user;
 
+            // 1.5 Send Verification Email
+            await sendEmailVerification(user);
+
             // 2. Set up their initial database profile
             await setDoc(doc(db, 'users', user.uid), {
                 uid: user.uid,
@@ -70,10 +73,9 @@ export default function SignUpPage() {
                 });
             }
 
-            // 4. Navigate home or vendor dashboard
-            toast.success('Account created successfully!')
-            const target = role === 'vendor' ? '/dashboard/vendor' : '/dashboard'
-            navigate(redirectPath || target)
+            // 4. Redirect to verification status page
+            toast.success('Account created! Please check your email for a verification link.')
+            navigate('/verify-email')
         } catch (err: any) {
             const msg = friendlyAuthError(err, 'Failed to create account. Please try again.')
             setError(msg)

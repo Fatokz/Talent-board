@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Sidebar from './components/Sidebar'
@@ -13,6 +13,7 @@ import LandingPage from './pages/LandingPage'
 import ProfilePage from './pages/ProfilePage'
 import SignInPage from './pages/auth/SignInPage'
 import SignUpPage from './pages/auth/SignUpPage'
+import VerifyEmailPage from './pages/auth/VerifyEmailPage'
 import Marketplace from './pages/Marketplace'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -27,13 +28,26 @@ import VendorInbox from './pages/vendor/VendorInbox'
 import InvitePage from './pages/InvitePage'
 import './index.css'
 
+import { subscribeToUserConversations } from './lib/db'
+import UserMessagesPanel from './components/UserMessagesPanel'
+
 /* ── Authenticated app shell (sidebar + inner pages) ─────────────────── */
 function AppShell() {
     const { currentUser } = useAuth()
     const [sidebarOpen, setSidebarOpen] = useState<boolean>(false)
     const [onboardingOpen, setOnboardingOpen] = useState(false)
+    const [isMessagesOpen, setIsMessagesOpen] = useState(false)
+    const [unreadCount, setUnreadCount] = useState(0)
     const location = useLocation()
     const isVendorMode = location.pathname.startsWith('/dashboard/vendor')
+
+    // Track unread message count for the global badges
+    useEffect(() => {
+        if (isVendorMode || !currentUser?.uid) return
+        return subscribeToUserConversations(currentUser.uid, (convos) => {
+            setUnreadCount(convos.reduce((acc, c) => acc + (c.userUnread || 0), 0))
+        })
+    }, [currentUser?.uid, isVendorMode])
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
@@ -53,6 +67,8 @@ function AppShell() {
                         isOpen={sidebarOpen} 
                         onClose={() => setSidebarOpen(false)} 
                         onOpenOnboarding={() => setOnboardingOpen(true)} 
+                        onOpenMessages={() => setIsMessagesOpen(true)}
+                        unreadCount={unreadCount}
                     />
                 )}
             </div>
@@ -64,7 +80,16 @@ function AppShell() {
                     <Route path="/notifications" element={<PendingApprovals onMenuClick={() => setSidebarOpen(true)} />} />
                     <Route path="/groups" element={<GroupManagement onMenuClick={() => setSidebarOpen(true)} />} />
                     <Route path="/ledger" element={<TransactionLedger onMenuClick={() => setSidebarOpen(true)} />} />
-                    <Route path="/marketplace" element={<Marketplace onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route 
+                        path="/marketplace" 
+                        element={
+                            <Marketplace 
+                                onMenuClick={() => setSidebarOpen(true)} 
+                                onOpenMessages={() => setIsMessagesOpen(true)} 
+                                unreadCount={unreadCount}
+                            />
+                        } 
+                    />
                     
                     {/* Vendor Routes */}
                     <Route path="/vendor" element={<VendorOverview onMenuClick={() => setSidebarOpen(true)} />} />
@@ -85,6 +110,11 @@ function AppShell() {
                     uid={currentUser.uid} 
                 />
             )}
+
+            <UserMessagesPanel 
+                isOpen={isMessagesOpen} 
+                onClose={() => setIsMessagesOpen(false)} 
+            />
         </div>
     )
 }
@@ -100,6 +130,7 @@ function App() {
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/signin" element={<SignInPage />} />
                     <Route path="/signup" element={<SignUpPage />} />
+                    <Route path="/verify-email" element={<VerifyEmailPage />} />
                     <Route path="/invite/:jarId" element={<InvitePage />} />
 
                     {/* Authenticated app shell — all dashboard sub-routes live here */}

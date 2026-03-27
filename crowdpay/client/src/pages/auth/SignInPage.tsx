@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Shield, Eye, EyeOff, Lock, ArrowRight, Zap, CheckCircle } from 'lucide-react'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'
 import { auth } from '../../lib/firebase'
 import { useAuth } from '../../contexts/AuthContext'
 import { friendlyAuthError } from '../../lib/authErrors'
@@ -17,17 +17,46 @@ export default function SignInPage() {
     const [password, setPassword] = useState('')
     const [showPw, setShowPw] = useState(false)
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState('')
+    const [resending, setResending] = useState(false)
+    const [error, setError] = useState<any>('')
 
     // Always start at the top when arriving on this page
     useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [])
+
+    const handleResend = async (user: any) => {
+        setResending(true)
+        try {
+            await sendEmailVerification(user)
+            toast.success('Verification email resent!')
+        } catch (err) {
+            toast.error('Failed to resend email. Please try again later.')
+        } finally {
+            setResending(false)
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         setError('')
         try {
-            await signInWithEmailAndPassword(auth, email, password)
+            const result = await signInWithEmailAndPassword(auth, email, password)
+            if (!result.user.emailVerified) {
+                setError(
+                    <span>
+                        Your email is not verified. 
+                        <button 
+                            type="button" 
+                            onClick={() => handleResend(result.user)}
+                            className="ml-2 font-black underline hover:text-blue-900 disabled:opacity-50"
+                            disabled={resending}
+                        >
+                            {resending ? 'Resending...' : 'Resend Link'}
+                        </button>
+                    </span>
+                )
+                return
+            }
             navigate(redirectPath || '/dashboard')
             toast.success('Welcome back!')
         } catch (err: any) {
