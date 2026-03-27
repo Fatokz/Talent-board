@@ -38,8 +38,9 @@ export default function VerifyEmailPage() {
         try {
             await currentUser.reload()
             if (currentUser.emailVerified) {
-                toast.success('Email verified! Redirecting...')
-                navigate('/dashboard')
+                toast.success('Email verified! Please sign in to continue.')
+                await signOut()
+                navigate('/signin?verified=true')
             } else {
                 toast.error('Still not verified. Please click the link in your email.')
             }
