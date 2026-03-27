@@ -165,23 +165,23 @@ export default function Marketplace({ onMenuClick, onOpenMessages, unreadCount }
 
                 {/* Product Grid */}
                 {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 animate-pulse">
-                        {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="h-96 bg-slate-200 rounded-[2.5rem]" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                            <div key={i} className="h-64 bg-slate-200 rounded-[1rem]" />
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {filteredProducts.map((product) => {
                             const vendor = vendors.find(v => v.id === product.vendorId)
                         return (
                             <div 
                                 key={product.id} 
                                 onClick={() => product.status === 'active' && openProductDetails(product)} 
-                                className={`group bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden transition-all duration-500 flex flex-col ${product.status === 'active' ? 'hover:shadow-2xl hover:shadow-slate-200/60 cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
+                                className={`group bg-white rounded-[1rem] border border-slate-200 overflow-hidden transition-all duration-500 flex flex-col ${product.status === 'active' ? 'hover:shadow-2xl hover:shadow-slate-200/60 cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
                             >
                                 {/* Image Wrapper */}
-                                <div className="relative h-60 overflow-hidden bg-slate-50 shrink-0">
+                                <div className="relative h-36 overflow-hidden bg-slate-50 shrink-0">
                                     <img 
                                         src={product.image} 
                                         alt={product.name}
@@ -205,33 +205,39 @@ export default function Marketplace({ onMenuClick, onOpenMessages, unreadCount }
                                     )}
                                 </div>
 
-                                <div className="p-7 flex-1 flex flex-col bg-white">
-                                    <div className="flex justify-between items-start mb-2 gap-4">
-                                        <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight group-hover:text-blue-900 transition-colors line-clamp-2">
+                                <div className="p-3.5 flex-1 flex flex-col bg-white">
+                                    <div className="flex flex-col mb-1.5 gap-1">
+                                        <h3 className="text-[15px] font-black text-slate-900 tracking-tight group-hover:text-blue-900 transition-colors line-clamp-1">
                                             {product.name}
                                         </h3>
-                                        <div className={`text-xl font-black shrink-0 ${product.status === 'active' ? 'text-blue-900' : 'text-slate-400 line-through'}`}>
+                                        <div className={`text-[15px] font-black ${product.status === 'active' ? 'text-blue-900' : 'text-slate-400 line-through'}`}>
                                             ₦{product.price.toLocaleString()}
                                         </div>
                                     </div>
 
-                                    <p className="text-sm text-slate-500 font-medium leading-relaxed mb-6 line-clamp-2">
+                                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed mb-2.5 line-clamp-2 min-h-[32px]">
                                         {product.description}
                                     </p>
 
-                                    <div className="mt-auto pt-6 border-t border-slate-100 flex items-center justify-between">
-                                        <button onClick={(e) => openVendorProfile(vendor?.id, e)} className="flex items-center gap-3 text-left group/vendor active:scale-95 transition-transform max-w-[75%]">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover/vendor:bg-blue-50 group-hover/vendor:text-blue-600 transition-colors shrink-0">
-                                                <Store size={18} />
+                                    <div className="mb-3">
+                                        <button className="w-full py-2 bg-blue-900 text-white text-[11px] font-black rounded-lg hover:bg-blue-800 active:scale-95 transition-all shadow-sm">
+                                            Buy Now
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-auto pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                                        <button onClick={(e) => openVendorProfile(vendor?.id, e)} className="flex items-center gap-2 text-left group/vendor active:scale-95 transition-transform max-w-[70%]">
+                                            <div className="w-6 h-6 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover/vendor:bg-blue-50 group-hover/vendor:text-blue-600 transition-colors shrink-0">
+                                                <Store size={12} />
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Sold By</p>
-                                                <p className="text-sm font-bold text-slate-700 truncate group-hover/vendor:text-blue-600 transition-colors">{vendor?.name || 'Unknown Store'}</p>
+                                                <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">By</p>
+                                                <p className="text-[10px] font-bold text-slate-700 truncate group-hover/vendor:text-blue-600 transition-colors">{vendor?.name || 'Unknown'}</p>
                                             </div>
                                         </button>
-                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-lg text-amber-500 shrink-0">
-                                            <Star size={12} className="fill-current" />
-                                            <span className="text-xs font-black">{vendor?.rating || '5.0'}</span>
+                                        <div className="flex items-center gap-1 px-1 py-0.5 bg-amber-50 rounded-md text-amber-500 shrink-0">
+                                            <Star size={8} className="fill-current" />
+                                            <span className="text-[9px] font-black">{vendor?.rating || '5.0'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -309,6 +315,8 @@ export default function Marketplace({ onMenuClick, onOpenMessages, unreadCount }
                 initialName={selectedProduct ? `Purchase: ${selectedProduct.name}` : ''}
                 initialGoal={jarTargetAmount || selectedProduct?.price}
                 initialVendorId={selectedProduct?.vendorId}
+                initialProductId={selectedProduct?.id}
+                initialProductName={selectedProduct?.name}
             />
         </div>
     )

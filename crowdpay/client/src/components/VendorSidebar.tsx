@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-    LayoutDashboard, Package, ShoppingBag, DollarSign, Settings,
-    LogOut, X, User as UserIcon, Store, ArrowRightLeft, ShieldCheck, MessageSquare
+    LayoutDashboard, Package, ShoppingBag, Wallet, Settings,
+    LogOut, X, User as UserIcon, Store, ArrowRightLeft, ShieldCheck, MessageSquare,
+    TrendingUp
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { subscribeToVendorOrders, subscribeToVendorProfile, subscribeToVendorConversations } from '../lib/db'
@@ -68,7 +69,8 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
         { to: '/dashboard/vendor', icon: LayoutDashboard, label: 'Merchant Hub', end: true },
         { to: '/dashboard/vendor/products', icon: Package, label: 'Product Inventory' },
         { to: '/dashboard/vendor/orders', icon: ShoppingBag, label: 'Orders', badge: pendingOrders > 0 ? pendingOrders : undefined },
-        { to: '/dashboard/vendor/payouts', icon: DollarSign, label: 'Earnings & Payouts' },
+        { to: '/dashboard/vendor/jars', icon: TrendingUp, label: 'Product Jars' },
+        { to: '/dashboard/vendor/payouts', icon: Wallet, label: 'Earnings & Payouts' },
         { to: '/dashboard/vendor/messages', icon: MessageSquare, label: 'Messages', badge: unreadCount > 0 ? unreadCount : undefined },
         { to: '/dashboard/vendor/profile', icon: UserIcon, label: 'Merchant Profile' },
         { to: '/dashboard/vendor/kyc', icon: ShieldCheck, label: 'KYC Verification' },

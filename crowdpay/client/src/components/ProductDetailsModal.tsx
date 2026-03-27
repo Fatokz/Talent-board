@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { X, ShoppingCart, Store, Minus, Plus, ShieldCheck, MessageSquare } from 'lucide-react'
-import { Product, VendorProfile, subscribeToVendorProfile } from '../lib/db'
+import { X, ShoppingCart, Store, Minus, Plus, ShieldCheck, MessageSquare, Wallet } from 'lucide-react'
+import { Product, VendorProfile, subscribeToVendorProfile, payFromWallet } from '../lib/db'
+import { useAuth } from '../contexts/AuthContext'
+import toast from 'react-hot-toast'
 
 interface Props {
     isOpen: boolean;
@@ -12,9 +14,11 @@ interface Props {
 }
 
 export default function ProductDetailsModal({ isOpen, onClose, product, onStartJar, onViewStore, onChat }: Props) {
+    const { userProfile } = useAuth()
     const [quantity, setQuantity] = useState(1)
     const [activeImageIndex, setActiveImageIndex] = useState(0)
     const [vendor, setVendor] = useState<VendorProfile | null>(null)
+    const [isPaying, setIsPaying] = useState(false)
 
     useEffect(() => {
         if (!isOpen || !product?.vendorId) return
@@ -30,6 +34,40 @@ export default function ProductDetailsModal({ isOpen, onClose, product, onStartJ
 
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) onClose();
+    }
+
+    const handleWalletPayment = async () => {
+        if (!userProfile) {
+            toast.error("Please sign in to make a purchase");
+            return;
+        }
+        
+        const total = product.price * quantity;
+        if ((userProfile.walletBalance || 0) < total) {
+            toast.error(`Insufficient balance. You need ₦${(total - (userProfile.walletBalance || 0)).toLocaleString()} more.`);
+            return;
+        }
+
+        if (!confirm(`Confirm purchase of ${quantity}x ${product.name} for ₦${total.toLocaleString()} from your wallet?`)) return;
+
+        setIsPaying(true);
+        try {
+            await payFromWallet(
+                userProfile.uid,
+                product.vendorId,
+                product.id,
+                product.name,
+                product.price,
+                quantity
+            );
+            toast.success("Purchase successful! Your order has been placed.");
+            onClose();
+        } catch (err: any) {
+            console.error("Payment error:", err);
+            toast.error(err.message || "Payment failed. Please try again.");
+        } finally {
+            setIsPaying(false);
+        }
     }
 
     return (
@@ -142,36 +180,65 @@ export default function ProductDetailsModal({ isOpen, onClose, product, onStartJ
                 </div>
 
                 {/* Sticky Action Footer */}
-                <div className="absolute sm:relative bottom-0 left-0 right-0 p-4 sm:p-5 border-t border-slate-100 bg-white shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)] shrink-0 z-10 transition-all">
-                    <div className="flex flex-row items-center gap-2.5 sm:gap-3">
-                        {/* Quantity Selector */}
-                        <div className="flex items-center justify-between w-[110px] sm:w-[130px] bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-1 h-12 sm:h-14 shrink-0">
+                <div className="absolute sm:relative bottom-0 left-0 right-0 p-4 sm:p-6 border-t border-slate-100 bg-white/95 backdrop-blur-md shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.1)] shrink-0 z-20">
+                    <div className="max-w-4xl mx-auto space-y-4">
+                        {/* Row 1: Quantity & Start Jar (Shared on Tablet, Separate on Mobile) */}
+                        <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                            {/* Quantity Selector */}
+                            <div className="flex items-center justify-between w-full sm:w-48 bg-slate-50 border border-slate-200 rounded-2xl p-1.5 h-14 shrink-0 shadow-inner">
+                                <button 
+                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                    className="w-12 h-full rounded-xl flex items-center justify-center text-slate-500 bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all active:scale-90"
+                                    disabled={quantity <= 1 || isPaying}
+                                >
+                                    <Minus size={20} />
+                                </button>
+                                <span className="text-xl font-black text-slate-900 tabular-nums">{quantity}</span>
+                                <button 
+                                    onClick={() => setQuantity(quantity + 1)}
+                                    className="w-12 h-full rounded-xl flex items-center justify-center text-slate-500 bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all active:scale-90"
+                                    disabled={isPaying}
+                                >
+                                    <Plus size={20} />
+                                </button>
+                            </div>
+
+                            {/* Start Jar - Secondary Action */}
                             <button 
-                                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                className="w-8 sm:w-10 h-full rounded-lg sm:rounded-xl flex items-center justify-center text-slate-500 bg-white shadow-sm hover:shadow transition-all disabled:opacity-30 active:scale-95"
-                                disabled={quantity <= 1}
+                                onClick={() => onStartJar(product, quantity, totalPrice)}
+                                disabled={isPaying}
+                                className="flex-1 h-14 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-2xl hover:border-blue-700/30 hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center gap-3 px-6 shrink-0 group"
                             >
-                                <Minus size={14} className="sm:w-4 sm:h-4" />
-                            </button>
-                            <span className="flex-1 text-center text-xs sm:text-sm font-black text-slate-900">{quantity}</span>
-                            <button 
-                                onClick={() => setQuantity(quantity + 1)}
-                                className="w-8 sm:w-10 h-full rounded-lg sm:rounded-xl flex items-center justify-center text-slate-500 bg-white shadow-sm hover:shadow transition-all active:scale-95"
-                            >
-                                <Plus size={14} className="sm:w-4 sm:h-4" />
+                                <ShoppingCart size={20} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                                <span className="uppercase tracking-widest text-xs font-black">Start a Savings Jar</span>
                             </button>
                         </div>
 
-                        {/* Primary Action */}
+                        {/* Row 2: Pay from Wallet (Primary Action - Full width for better presence) */}
                         <button 
-                            onClick={() => onStartJar(product, quantity, totalPrice)}
-                            className="flex-1 h-12 sm:h-14 bg-gradient-to-r from-blue-900 to-blue-700 text-white font-black rounded-xl sm:rounded-2xl shadow-xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-between px-3 sm:px-6 shrink-0"
+                            onClick={handleWalletPayment}
+                            disabled={isPaying}
+                            className="relative w-full h-16 bg-blue-900 text-white font-bold rounded-2xl shadow-xl shadow-blue-900/20 hover:bg-blue-800 active:scale-[0.98] transition-all flex items-center justify-between px-8 group overflow-hidden"
                         >
-                            <div className="flex items-center gap-1.5 sm:gap-2">
-                                <ShoppingCart size={14} className="hidden sm:block" />
-                                <span className="tracking-widest text-[9px] sm:text-xs uppercase">Start Jar</span>
+                            {/* Shimmer Effect */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
+                            
+                            <div className="flex items-center gap-4 relative z-10">
+                                {isPaying ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <div className="p-2 bg-white/10 rounded-lg group-hover:bg-white/20 transition-colors">
+                                        <Wallet size={22} className="text-white" />
+                                    </div>
+                                )}
+                                <span className="uppercase tracking-[0.15em] text-xs sm:text-sm font-black">
+                                    {isPaying ? 'Processing Transaction...' : 'Pay from Wallet'}
+                                </span>
                             </div>
-                            <span className="text-xs sm:text-lg">₦{totalPrice.toLocaleString()}</span>
+                            
+                            <span className="text-xl sm:text-2xl relative z-10 font-black tracking-tight tabular-nums">
+                                ₦{totalPrice.toLocaleString()}
+                            </span>
                         </button>
                     </div>
                 </div>

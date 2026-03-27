@@ -25,6 +25,7 @@ import VendorSettings from './pages/vendor/VendorSettings'
 import VendorKyc from './pages/vendor/VendorKyc'
 import VendorProfilePage from './pages/vendor/VendorProfilePage'
 import VendorInbox from './pages/vendor/VendorInbox'
+import VendorJars from './pages/vendor/VendorJars'
 import InvitePage from './pages/InvitePage'
 import './index.css'
 
@@ -100,6 +101,7 @@ function AppShell() {
                     <Route path="/vendor/kyc" element={<VendorKyc onMenuClick={() => setSidebarOpen(true)} />} />
                     <Route path="/vendor/profile" element={<VendorProfilePage onMenuClick={() => setSidebarOpen(true)} />} />
                     <Route path="/vendor/messages" element={<VendorInbox onMenuClick={() => setSidebarOpen(true)} />} />
+                    <Route path="/vendor/jars" element={<VendorJars onMenuClick={() => setSidebarOpen(true)} />} />
                 </Routes>
             </main>
 

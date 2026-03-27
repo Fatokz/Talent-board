@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Package, DollarSign, Tag, Plus, UploadCloud } from 'lucide-react'
+import { X, Package, Tag, Plus, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createProduct } from '../lib/db'
 import { uploadToCloudinary } from '../lib/cloudinary'
@@ -126,7 +126,7 @@ export default function AddProductModal({ isOpen, onClose, vendorId }: Props) {
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Price (₦)</label>
                             <div className="relative">
-                                <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-black">₦</span>
                                 <input 
                                     type="number" 
                                     value={form.price}
