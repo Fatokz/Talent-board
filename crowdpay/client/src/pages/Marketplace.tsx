@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Store, ShieldCheck, Star, Search, Menu } from 'lucide-react'
-import { subscribeToAllProducts, subscribeToAllVendors, Product, VendorProfile } from '../lib/db'
+import { Store, ShieldCheck, Star, Search, Menu, MessageSquare } from 'lucide-react'
+import { subscribeToAllProducts, subscribeToAllVendors, subscribeToUserConversations, Product, VendorProfile } from '../lib/db'
 import VendorChatModal from '../components/VendorChatModal'
+import UserMessagesPanel from '../components/UserMessagesPanel'
 import CreateJarModal from '../components/CreateJarModal'
 import ProductDetailsModal from '../components/ProductDetailsModal'
 import VendorProfileModal from '../components/VendorProfileModal'
@@ -18,6 +19,8 @@ export default function Marketplace({ onMenuClick }: Props) {
     const [vendorProfileId, setVendorProfileId] = useState<string | null>(null)
     const [isCreateJarOpen, setIsCreateJarOpen] = useState(false)
     const [jarTargetAmount, setJarTargetAmount] = useState<number | undefined>(undefined)
+    const [isMessagesOpen, setIsMessagesOpen] = useState(false)
+    const [unreadCount, setUnreadCount] = useState(0)
     
     const [search, setSearch] = useState('')
     const [category, setCategory] = useState('All')
@@ -38,6 +41,14 @@ export default function Marketplace({ onMenuClick }: Props) {
             unsubVendors()
         }
     }, [])
+
+    // Track unread message count for the inbox icon badge
+    useEffect(() => {
+        if (!currentUser?.uid) return
+        return subscribeToUserConversations(currentUser.uid, (convos) => {
+            setUnreadCount(convos.reduce((acc, c) => acc + (c.userUnread || 0), 0))
+        })
+    }, [currentUser?.uid])
 
     const categories = ['All', 'Electronics', 'Education', 'Events']
 
@@ -93,6 +104,20 @@ export default function Marketplace({ onMenuClick }: Props) {
                             className="w-full pl-10 pr-4 h-11 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-blue-900 focus:bg-white transition-all font-medium" 
                         />
                     </div>
+
+                    {/* Messages Icon */}
+                    <button
+                        onClick={() => setIsMessagesOpen(true)}
+                        className="relative w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-blue-50 hover:text-blue-700 transition-colors shrink-0"
+                        title="Messages"
+                    >
+                        <MessageSquare size={18} className="text-slate-600" />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4.5 h-4.5 min-w-[18px] px-1 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center border-2 border-white shadow-sm">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 no-scrollbar">
@@ -235,12 +260,19 @@ export default function Marketplace({ onMenuClick }: Props) {
             </div>
 
             {/* Modals */}
+            <UserMessagesPanel
+                isOpen={isMessagesOpen}
+                onClose={() => setIsMessagesOpen(false)}
+            />
+
             {chatVendor && (
                 <VendorChatModal 
                     isOpen={!!chatVendor} 
                     onClose={() => setChatVendor(null)}
                     vendorId={chatVendor.id}
                     vendorName={chatVendor.name}
+                    buyerId={currentUser?.uid || ''}
+                    buyerName={currentUser?.displayName || 'User'}
                 />
             )}
 
