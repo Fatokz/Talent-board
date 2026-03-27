@@ -3,7 +3,7 @@ import {
     ShieldCheck, User, MapPin, Phone, Hash, AlertTriangle, CheckCircle, RefreshCcw, Menu, Building, CreditCard, Lock, Loader2
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeToUserDoc, updateUserProfile, UserProfile } from '../lib/db'
+import { subscribeToUserDoc, updateUserProfile, UserProfile, updateVendorProfile } from '../lib/db'
 import { apiFetch } from '../utils/api';
 import toast from 'react-hot-toast'
 
@@ -169,6 +169,14 @@ export default function ProfilePage({ onMenuClick }: Props) {
                 // Optional: Sync back the official names from the API response
                 fullName: `${json.data.firstName} ${json.data.lastName}`.trim()
             })
+
+            // Also update Vendor Profile if it exists
+            try {
+                await updateVendorProfile(currentUser!.uid, { verified: true })
+            } catch (vErr) {
+                console.warn('Failed to sync vendor verification - profile may not exist yet:', vErr)
+            }
+
             toast.success("Profile verified successfully!")
         } catch (err: any) {
             console.error('CRITICAL VERIFICATION ERROR:', err)

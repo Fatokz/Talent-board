@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react'
 import { 
     TrendingUp, Menu, Package,
     Plus, Users, DollarSign,
-    ShieldCheck, Clock, ShoppingCart, MessageSquare
+    ShieldCheck, Clock, ShoppingCart, MessageSquare,
+    AlertTriangle, Check
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { 
     subscribeToVendorProfile, VendorProfile, 
     subscribeToVendorOrders, Order,
     subscribeToVendorProducts, Product,
-    subscribeToVendorConversations
+    subscribeToVendorConversations,
+    updateVendorProfile
 } from '../../lib/db'
 import AddProductModal from '../../components/AddProductModal'
 import { Link, useNavigate } from 'react-router-dom'
@@ -18,7 +20,7 @@ import toast from 'react-hot-toast'
 interface Props { onMenuClick?: () => void }
 
 export default function VendorOverview({ onMenuClick }: Props) {
-    const { currentUser } = useAuth()
+    const { currentUser, userProfile } = useAuth()
     const [vendorData, setVendorData] = useState<VendorProfile | null>(null)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [stats, setStats] = useState({
@@ -31,6 +33,8 @@ export default function VendorOverview({ onMenuClick }: Props) {
     const [products, setProducts] = useState<Product[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const navigate = useNavigate()
+
+    const isVerified = userProfile?.kycStatus === 'verified'
 
     useEffect(() => {
         if (!currentUser?.uid) return
@@ -63,6 +67,13 @@ export default function VendorOverview({ onMenuClick }: Props) {
         }
     }, [currentUser])
 
+    // Auto-sync verification status
+    useEffect(() => {
+        if (isVerified && vendorData && !vendorData.verified) {
+            updateVendorProfile(currentUser!.uid, { verified: true }).catch(console.error)
+        }
+    }, [isVerified, vendorData, currentUser])
+
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-12">
             {/* ── Header ── */}
@@ -80,9 +91,15 @@ export default function VendorOverview({ onMenuClick }: Props) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-wider">
-                        <ShieldCheck size={12} /> Live
-                    </div>
+                    {isVerified ? (
+                        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-wider">
+                            <ShieldCheck size={12} /> Verified
+                        </div>
+                    ) : (
+                        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-amber-600 text-[10px] font-black uppercase tracking-wider">
+                            <AlertTriangle size={12} /> Pending KYC
+                        </div>
+                    )}
 
                     {/* Messages Icon */}
                     <button
@@ -110,7 +127,7 @@ export default function VendorOverview({ onMenuClick }: Props) {
             <div className="max-w-7xl mx-auto p-4 sm:p-6 md:p-8">
                 {/* Dual Role Clause Banner */}
                 <div className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-emerald-50 border border-emerald-100 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 animate-in slide-in-from-top-4 duration-500">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm shrink-0">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm shrink-0 border border-emerald-50">
                         <Users size={24} className="sm:w-7 sm:h-7" />
                     </div>
                     <div className="flex-1">
@@ -263,18 +280,38 @@ export default function VendorOverview({ onMenuClick }: Props) {
                         </div>
 
                         {/* Store Verification status */}
-                        <div className="bg-gradient-to-br from-blue-900 to-indigo-900 rounded-[2rem] p-5 sm:p-6 text-white relative overflow-hidden shadow-xl shadow-blue-900/20">
-                            <div className="relative z-10">
-                                <h3 className="text-[12px] sm:text-[13px] font-black mb-1.5 uppercase tracking-tight">Verification Status</h3>
-                                <p className="text-[10px] sm:text-[11px] text-blue-100/70 font-medium leading-relaxed mb-4 pt-1">Your store is currently in "Draft" mode. Finish your KYC to start accepting automated jar payouts.</p>
-                                <Link to="/dashboard/vendor/kyc" className="block w-full">
-                                    <button className="w-full py-2.5 sm:py-3 rounded-xl bg-white text-blue-900 text-[10px] sm:text-[11px] font-black hover:bg-blue-50 transition-colors shadow-lg shadow-white/10 mt-1">
-                                        Complete Vendor KYC
-                                    </button>
-                                </Link>
+                        {isVerified ? (
+                            <div className="bg-gradient-to-br from-emerald-600 to-teal-800 rounded-[2rem] p-5 sm:p-6 text-white relative overflow-hidden shadow-xl shadow-emerald-900/20">
+                                <div className="relative z-10">
+                                    <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-4">
+                                        <ShieldCheck size={20} className="text-white" />
+                                    </div>
+                                    <h3 className="text-[12px] sm:text-[13px] font-black mb-1.5 uppercase tracking-tight">Account Verified</h3>
+                                    <p className="text-[10px] sm:text-[11px] text-emerald-50/80 font-medium leading-relaxed mb-4">
+                                        Your identity has been confirmed via Interswitch. You have full access to automated jar payouts and merchant features.
+                                    </p>
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-200">
+                                        <Check size={14} strokeWidth={3} /> Trusted Merchant
+                                    </div>
+                                </div>
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 blur-2xl rounded-full pointer-events-none" />
                             </div>
-                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 blur-2xl rounded-full pointer-events-none" />
-                        </div>
+                        ) : (
+                            <div className="bg-gradient-to-br from-blue-900 to-indigo-900 rounded-[2rem] p-5 sm:p-6 text-white relative overflow-hidden shadow-xl shadow-blue-900/20">
+                                <div className="relative z-10">
+                                    <h3 className="text-[12px] sm:text-[13px] font-black mb-1.5 uppercase tracking-tight">Verification Status</h3>
+                                    <p className="text-[10px] sm:text-[11px] text-blue-100/70 font-medium leading-relaxed mb-4 pt-1">
+                                        Your store is currently in "Draft" mode. Finish your KYC to start accepting automated jar payouts.
+                                    </p>
+                                    <Link to="/dashboard/vendor/kyc" className="block w-full">
+                                        <button className="w-full py-2.5 sm:py-3 rounded-xl bg-white text-blue-900 text-[10px] sm:text-[11px] font-black hover:bg-blue-50 transition-colors shadow-lg shadow-white/10 mt-1">
+                                            Complete Vendor KYC
+                                        </button>
+                                    </Link>
+                                </div>
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 blur-2xl rounded-full pointer-events-none" />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
