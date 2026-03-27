@@ -106,6 +106,7 @@ export interface UserProfile {
     nin?: string;
     phoneNumber?: string;
     address?: string;
+    gender?: 'Male' | 'Female' | 'Other' | 'N/A';
     bankName?: string;
     bankCode?: string;
     accountNumber?: string;

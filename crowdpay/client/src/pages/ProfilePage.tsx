@@ -20,6 +20,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
     const [nin, setNin] = useState('')
     const [phone, setPhone] = useState('')
     const [address, setAddress] = useState('')
+    const [gender, setGender] = useState<UserProfile['gender'] | ''>('')
     
     // Bank state
     const [bankCode, setBankCode] = useState('')
@@ -66,6 +67,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
                 if (data.nin) setNin(data.nin)
                 if (data.phoneNumber) setPhone(data.phoneNumber)
                 if (data.address) setAddress(data.address)
+                if (data.gender) setGender(data.gender)
                 if (data.bankCode) setBankCode(data.bankCode)
                 if (data.accountNumber) setAccountNumber(data.accountNumber)
                 isInitialized.current = true
@@ -84,8 +86,8 @@ export default function ProfilePage({ onMenuClick }: Props) {
             return
         }
 
-        if (!phone || !address) {
-            setError('Phone number and address are required.')
+        if (!phone || !address || !gender || gender === 'N/A') {
+            setError('Phone number, address, and gender are required.')
             return
         }
 
@@ -135,6 +137,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
                 body: JSON.stringify({
                     accountNumber,
                     bankCode,
+                    bankName: banks.find(b => b.code === bankCode)?.name || '',
                     fullName: profile?.fullName || ''
                 })
             })
@@ -160,6 +163,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
                 address,
                 bankCode,
                 bankName: selectedBankName,
+                gender,
                 accountNumber,
                 accountName: bankJson.data.accountName,
                 // Optional: Sync back the official names from the API response
@@ -167,6 +171,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
             })
             toast.success("Profile verified successfully!")
         } catch (err: any) {
+            console.error('CRITICAL VERIFICATION ERROR:', err)
             const msg = 'Network error occurred during verification.'
             setError(msg)
             toast.error(msg)
@@ -262,6 +267,24 @@ export default function ProfilePage({ onMenuClick }: Props) {
                                         className="w-full pl-10 pr-4 h-11 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-sm focus:outline-none cursor-not-allowed font-medium" 
                                     />
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Gender */}
+                        <div>
+                            <label className="block text-xs font-black text-slate-700 mb-1.5 ml-1">Gender</label>
+                            <div className="relative">
+                                <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <select
+                                    value={gender || ''}
+                                    onChange={e => setGender(e.target.value as UserProfile['gender'])}
+                                    disabled={isVerified || isPending}
+                                    className="w-full pl-10 pr-10 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-shadow appearance-none disabled:bg-slate-50 disabled:text-slate-500"
+                                >
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
                             </div>
                         </div>
 
@@ -384,7 +407,7 @@ export default function ProfilePage({ onMenuClick }: Props) {
                         {!isVerified && (
                             <button
                                 type="submit"
-                                disabled={isPending || nin.length !== 11 || !phone || !address || !bankCode || accountNumber.length !== 10}
+                                disabled={isPending || nin.length !== 11 || !phone || !address || !gender || gender === 'N/A' || !bankCode || accountNumber.length !== 10}
                                 className="w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-gradient-to-r from-blue-900 to-blue-700 text-white font-black text-sm shadow-lg shadow-blue-900/20 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                                 {isPending ? (
